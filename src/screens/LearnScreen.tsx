@@ -94,23 +94,31 @@ const NameRow = React.memo(
             {/* Number badge (diamond) */}
             <View
               style={{
-                width: 34,
-                height: 34,
-                borderRadius: 8,
-                backgroundColor: "rgba(135,169,107,0.1)",
-                alignItems: "center",
-                justifyContent: "center",
+                width: 40,
+                height: 40,
                 marginRight: 14,
                 flexShrink: 0,
-                transform: [{ rotate: "45deg" }],
+                alignItems: "center",
+                justifyContent: "center",
               }}
             >
+              {/* Rotated diamond background */}
+              <View
+                style={{
+                  position: "absolute",
+                  width: 30,
+                  height: 30,
+                  borderRadius: 6,
+                  backgroundColor: "rgba(135,169,107,0.12)",
+                  transform: [{ rotate: "45deg" }],
+                }}
+              />
+              {/* Number text (not rotated) */}
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: "700",
                   color: Colors.sage,
-                  transform: [{ rotate: "-45deg" }],
                 }}
               >
                 {item.id}

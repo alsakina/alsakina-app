@@ -436,22 +436,28 @@ export default function NameDetailScreen({
           {/* Number diamond */}
           <View
             style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              backgroundColor: "rgba(135,169,107,0.12)",
+              width: 40,
+              height: 40,
               alignItems: "center",
               justifyContent: "center",
-              transform: [{ rotate: "45deg" }],
               marginBottom: 16,
             }}
           >
+            <View
+              style={{
+                position: "absolute",
+                width: 30,
+                height: 30,
+                borderRadius: 6,
+                backgroundColor: "rgba(135,169,107,0.12)",
+                transform: [{ rotate: "45deg" }],
+              }}
+            />
             <Text
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: "700",
                 color: Colors.sage,
-                transform: [{ rotate: "-45deg" }],
               }}
             >
               {id}
@@ -544,7 +550,6 @@ export default function NameDetailScreen({
                 onPress={handleRegenerate}
                 disabled={regenerating}
                 style={({ pressed }) => ({
-                  flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "center",
                   paddingVertical: 13,
@@ -559,7 +564,7 @@ export default function NameDetailScreen({
                 {regenerating ? (
                   <ActivityIndicator size="small" color={Colors.sage} />
                 ) : (
-                  <>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
                     <Sparkles size={16} color={Colors.sage} />
                     <Text
                       style={{
@@ -571,7 +576,7 @@ export default function NameDetailScreen({
                     >
                       Generate new explanation
                     </Text>
-                  </>
+                  </View>
                 )}
               </Pressable>
 

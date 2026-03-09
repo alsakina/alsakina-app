@@ -396,6 +396,18 @@ export default function HomeScreen() {
                   onDismiss={() => setError(null)}
                 />
               ) : null}
+
+              {/* Privacy note */}
+              <Text
+                style={{
+                  textAlign: "center",
+                  fontSize: 11,
+                  color: "rgba(74,74,74,0.3)",
+                  marginTop: 32,
+                }}
+              >
+                Your words are between you and Allah
+              </Text>
             </>
           )}
         </ScrollView>

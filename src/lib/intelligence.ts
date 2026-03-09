@@ -198,3 +198,144 @@ export async function fetchNameDetail(
       : undefined,
   };
 }
+
+/* ══════════════════════════════════════════════════
+   3. Daily Content (Garden / Explore Screen)
+   ══════════════════════════════════════════════════ */
+
+/* ── Types ─────────────────────────────────────── */
+
+export interface DailyHadith {
+  arabic: string;
+  english: string;
+  source: string;        // e.g. "Sahih Bukhari 6137"
+  explanation: string;   // thorough, simple explanation
+  application: string;   // how to apply in daily life
+}
+
+export interface DailyVerseEntry {
+  arabic: string;
+  translation: string;
+  reference: string;     // e.g. "Surah Al-Baqarah 2:152-153"
+}
+
+export interface DailyVerse {
+  theme: string;         // e.g. "Patience in Hardship"
+  verses: DailyVerseEntry[];
+  explanation: string;
+}
+
+export interface DailyStory {
+  title: string;
+  category: string;      // e.g. "Story from the Quran", "From the Seerah", "Sunnah of the Prophet ﷺ"
+  narrative: string;     // the full story, 5-8 sentences
+  source?: string;       // e.g. "Surah Al-Kahf 18:60-82"
+  lesson: string;        // the core lesson
+  application: string;   // how to apply today
+}
+
+export interface DailyDua {
+  arabic: string;
+  transliteration: string;
+  translation: string;
+  source?: string;       // e.g. "Sahih Muslim", "Quran 3:8"
+  benefits: string;      // what this du'a does for us
+  bestTime: string;      // when to say it
+  sincerity: string;     // how saying it with sincerity helps
+}
+
+/* ── System prompts ────────────────────────────── */
+
+const DAILY_HADITH_SYSTEM = `You are a knowledgeable Islamic scholar. Provide a hadith of the day.
+
+Choose an authentic hadith (from Sahih Bukhari, Sahih Muslim, or other widely accepted collections). Vary your selection — don't always pick the most famous ones.
+
+Respond ONLY with valid JSON — no markdown, no backticks, no preamble:
+{
+  "arabic": "The full Arabic text of the hadith",
+  "english": "The English translation",
+  "source": "The exact source with book and number (e.g. Sahih Bukhari 6137)",
+  "explanation": "A thorough yet simple-to-understand explanation of the hadith (4-6 sentences). Break down key words or phrases, explain context, and convey the deeper meaning.",
+  "application": "How we can apply this hadith in our daily lives (3-4 sentences). Be practical and specific."
+}`;
+
+const DAILY_VERSE_SYSTEM = `You are a knowledgeable Islamic scholar. Provide a Quranic selection of the day.
+
+Choose 1-3 consecutive or thematically linked verses that together explore a meaningful theme. Vary your selection widely.
+
+Respond ONLY with valid JSON — no markdown, no backticks, no preamble:
+{
+  "theme": "A short theme title (e.g. 'Patience in Adversity', 'The Mercy of Allah', 'Gratitude')",
+  "verses": [
+    {
+      "arabic": "The Arabic text of the verse",
+      "translation": "The English translation",
+      "reference": "Surah Name verse:number (e.g. Surah Al-Baqarah 2:152)"
+    }
+  ],
+  "explanation": "A thorough yet simple-to-understand explanation of these verses (5-7 sentences). Explain the context of revelation if relevant, break down the meaning, and highlight the theme."
+}`;
+
+const DAILY_STORY_SYSTEM = `You are a knowledgeable Islamic scholar and storyteller. Provide a story/narration of the day.
+
+This can be:
+- A story from the Quran (prophets, peoples, parables)
+- A narration from the life of Prophet Muhammad ﷺ (Seerah)
+- A Sunnah practice of the Prophet ﷺ with its backstory
+- A narration from widely accepted scholars about the Companions
+
+Vary your selection. Tell lesser-known stories too, not just the most famous ones.
+
+Respond ONLY with valid JSON — no markdown, no backticks, no preamble:
+{
+  "title": "A descriptive title for the story",
+  "category": "Story from the Quran | From the Seerah | Sunnah of the Prophet ﷺ | From the Companions",
+  "narrative": "The full story told engagingly and clearly (6-10 sentences). Set the scene, tell what happened, and convey emotion.",
+  "source": "The source reference if applicable (e.g. Surah Al-Kahf 18:60-82, Sahih Bukhari, etc.)",
+  "lesson": "The core lesson and wisdom from this story (3-4 sentences).",
+  "application": "How this story applies to our lives today (3-4 sentences). Be practical and relatable."
+}`;
+
+const DAILY_DUA_SYSTEM = `You are a knowledgeable Islamic scholar. Provide a du'a (supplication) of the day.
+
+Choose from authentic du'as — from the Quran, from the Sunnah, or well-known du'as from the Prophet ﷺ. Vary your selection.
+
+Respond ONLY with valid JSON — no markdown, no backticks, no preamble:
+{
+  "arabic": "The full Arabic text of the du'a",
+  "transliteration": "A clear transliteration for non-Arabic speakers",
+  "translation": "The English meaning",
+  "source": "Where this du'a comes from (e.g. Sahih Muslim 2654, Quran 3:8, Fortress of the Muslim)",
+  "benefits": "What are the spiritual and practical benefits of this du'a (3-4 sentences). What does it protect from or bring?",
+  "bestTime": "When is the best time or situation to say this du'a (2-3 sentences). Be specific — morning, before sleep, during hardship, etc.",
+  "sincerity": "How saying this du'a with true sincerity and understanding transforms it from mere words into a conversation with Allah (2-3 sentences)."
+}`;
+
+const SYSTEM_PROMPTS: Record<string, string> = {
+  hadith: DAILY_HADITH_SYSTEM,
+  verse: DAILY_VERSE_SYSTEM,
+  story: DAILY_STORY_SYSTEM,
+  dua: DAILY_DUA_SYSTEM,
+};
+
+const USER_PROMPTS: Record<string, string> = {
+  hadith: `Give me a hadith of the day for ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`,
+  verse: `Give me Quranic verse(s) of the day for ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`,
+  story: `Give me a story/narration of the day for ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`,
+  dua: `Give me a du'a of the day for ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`,
+};
+
+/* ── Fetch function ────────────────────────────── */
+
+export async function fetchDailyContent(
+  type: "hadith" | "verse" | "story" | "dua"
+): Promise<DailyHadith | DailyVerse | DailyStory | DailyDua> {
+  const system = SYSTEM_PROMPTS[type];
+  const userMsg = USER_PROMPTS[type];
+  const maxTokens = type === "story" ? 2048 : 1536;
+
+  const raw = await callClaude(system, userMsg, maxTokens);
+  const parsed = JSON.parse(raw);
+
+  return parsed;
+}
