@@ -58,11 +58,24 @@ const CONTENT_CONFIG: Record<
   },
 };
 
-/* ── Cache helpers ─────────────────────────────── */
+/* ── Helpers ───────────────────────────────────── */
 
-function getTodayKey(type: DailyContentType): string {
-  const today = new Date().toISOString().split("T")[0]; // "2026-03-09"
-  return `@daily_${type}_${today}`;
+function cacheKey(type: DailyContentType, dateStr: string): string {
+  return `@daily_${type}_${dateStr}`;
+}
+
+function getTodayStr(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+function formatDateDisplay(dateStr: string): string {
+  const date = new Date(dateStr + "T12:00:00"); // noon to avoid timezone issues
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /* ── Section wrapper ───────────────────────────── */
@@ -383,10 +396,12 @@ export default function DailyContentScreen({
   route,
   navigation,
 }: {
-  route: { params: { type: DailyContentType } };
+  route: { params: { type: DailyContentType; date?: string } };
   navigation: any;
 }) {
-  const { type } = route.params;
+  const { type, date } = route.params;
+  const dateStr = date || getTodayStr();
+  const isViewingToday = dateStr === getTodayStr();
   const config = CONTENT_CONFIG[type];
 
   const [content, setContent] = useState<any>(null);
@@ -408,8 +423,8 @@ export default function DailyContentScreen({
     setLoading(true);
     setError(null);
 
-    // Check cache for today
-    const key = getTodayKey(type);
+    // Check cache
+    const key = cacheKey(type, dateStr);
     try {
       const cached = await AsyncStorage.getItem(key);
       if (cached) {
@@ -421,7 +436,14 @@ export default function DailyContentScreen({
       console.warn("Cache read error:", err);
     }
 
-    // Fetch fresh
+    // If viewing a past date with no cache, nothing to show
+    if (!isViewingToday) {
+      setLoading(false);
+      setError("No reflection was saved for this day.");
+      return;
+    }
+
+    // Fetch fresh for today
     await fetchFresh();
   };
 
@@ -430,7 +452,7 @@ export default function DailyContentScreen({
     setError(null);
     try {
       const data = await fetchDailyContent(type);
-      const key = getTodayKey(type);
+      const key = cacheKey(type, dateStr);
       await AsyncStorage.setItem(key, JSON.stringify(data));
       setContent(data);
     } catch (err: any) {
@@ -502,7 +524,8 @@ export default function DailyContentScreen({
           </Text>
         </Pressable>
 
-        {content && !loading && (
+        {/* Only show refresh for today's content */}
+        {content && !loading && isViewingToday && (
           <Pressable
             onPress={handleRefresh}
             hitSlop={12}
@@ -563,12 +586,7 @@ export default function DailyContentScreen({
               color: Colors.charcoalMuted,
             }}
           >
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
+            {formatDateDisplay(dateStr)}
           </Text>
 
           {/* Divider */}
@@ -624,44 +642,48 @@ export default function DailyContentScreen({
           </View>
         )}
 
-        {/* Error */}
+        {/* Error / empty past date */}
         {error && !loading && (
           <View style={{ alignItems: "center", marginTop: 40 }}>
             <Text
               style={{
-                color: "#b44",
+                color: Colors.charcoalMuted,
                 fontSize: 14,
                 textAlign: "center",
                 lineHeight: 22,
                 marginBottom: 16,
+                fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                fontStyle: "italic",
               }}
             >
               {error}
             </Text>
-            <Pressable
-              onPress={fetchFresh}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingVertical: 10,
-                paddingHorizontal: 20,
-                borderRadius: 12,
-                borderWidth: 1.5,
-                borderColor: config.accentColor,
-              }}
-            >
-              <RefreshCw size={16} color={config.accentColor} />
-              <Text
+            {isViewingToday && (
+              <Pressable
+                onPress={fetchFresh}
                 style={{
-                  color: config.accentColor,
-                  fontSize: 14,
-                  fontWeight: "600",
-                  marginLeft: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  borderRadius: 12,
+                  borderWidth: 1.5,
+                  borderColor: config.accentColor,
                 }}
               >
-                Try again
-              </Text>
-            </Pressable>
+                <RefreshCw size={16} color={config.accentColor} />
+                <Text
+                  style={{
+                    color: config.accentColor,
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginLeft: 8,
+                  }}
+                >
+                  Try again
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
 

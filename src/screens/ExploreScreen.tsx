@@ -1,5 +1,5 @@
 // screens/ExploreScreen.tsx
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookOpen, BookMarked, Scroll, HandHeart } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
 
 /* ── Types ─────────────────────────────────────── */
@@ -60,6 +62,34 @@ const TILES: TileConfig[] = [
   },
 ];
 
+const CONTENT_TYPES: DailyContentType[] = ["hadith", "verse", "story", "dua"];
+
+/* ── Date helpers ──────────────────────────────── */
+
+function getDateString(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
+
+function getRecentDates(count: number): Date[] {
+  const dates: Date[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(d);
+  }
+  return dates;
+}
+
+function isToday(date: Date): boolean {
+  return getDateString(date) === getDateString(new Date());
+}
+
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 /* ── Diamond accent ────────────────────────────── */
 
 const DiamondAccent = () => (
@@ -93,10 +123,14 @@ const GardenTile = ({
   config,
   index,
   onPress,
+  isPast,
+  hasContent,
 }: {
   config: TileConfig;
   index: number;
   onPress: () => void;
+  isPast: boolean;
+  hasContent: boolean;
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
@@ -118,6 +152,8 @@ const GardenTile = ({
     ]).start();
   }, []);
 
+  const isDisabled = isPast && !hasContent;
+
   return (
     <Animated.View
       style={{
@@ -128,6 +164,7 @@ const GardenTile = ({
     >
       <Pressable
         onPress={onPress}
+        disabled={isDisabled}
         style={({ pressed }) => ({
           backgroundColor: "white",
           borderRadius: 22,
@@ -141,11 +178,10 @@ const GardenTile = ({
           elevation: 2,
           minHeight: 160,
           justifyContent: "space-between",
-          opacity: pressed ? 0.85 : 1,
+          opacity: isDisabled ? 0.35 : pressed ? 0.85 : 1,
           transform: [{ scale: pressed ? 0.97 : 1 }],
         })}
       >
-        {/* Icon container */}
         <View
           style={{
             width: 48,
@@ -161,8 +197,7 @@ const GardenTile = ({
           {config.icon}
         </View>
 
-        {/* Text */}
-        <View>
+        <View style={{ alignItems: "center" }}>
           <Text
             style={{
               fontSize: 16,
@@ -187,7 +222,6 @@ const GardenTile = ({
           </Text>
         </View>
 
-        {/* Bottom accent line */}
         <View
           style={{
             height: 2,
@@ -204,6 +238,85 @@ const GardenTile = ({
   );
 };
 
+/* ── Date pill ─────────────────────────────────── */
+
+const DatePill = ({
+  date,
+  isSelected,
+  hasAnyContent,
+  onPress,
+}: {
+  date: Date;
+  isSelected: boolean;
+  hasAnyContent: boolean;
+  onPress: () => void;
+}) => {
+  const today = isToday(date);
+
+  return (
+    <Pressable onPress={onPress}>
+      <View
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 10,
+          paddingHorizontal: 4,
+          borderRadius: 14,
+          width: 46,
+          backgroundColor: isSelected
+            ? "rgba(135,169,107,0.3)"
+            : "transparent",
+          borderWidth: 1.5,
+          borderColor: isSelected
+            ? "rgba(135,169,107,0.5)"
+            : "transparent",
+        }}
+      >
+      {/* Day name */}
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: "600",
+          color: isSelected ? Colors.sage : Colors.charcoalMuted,
+          letterSpacing: 0.3,
+          marginBottom: 4,
+          textAlign: "center",
+          alignSelf: "center",
+        }}
+      >
+        {today ? "Today" : DAY_NAMES[date.getDay()]}
+      </Text>
+
+      {/* Day number */}
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: isSelected ? "700" : "500",
+          color: isSelected ? Colors.charcoal : Colors.charcoalMuted,
+          fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+          textAlign: "center",
+          alignSelf: "center",
+        }}
+      >
+        {date.getDate()}
+      </Text>
+
+      {/* Content indicator dot */}
+      <View
+        style={{
+          width: 5,
+          height: 5,
+          borderRadius: 3,
+          backgroundColor: hasAnyContent ? Colors.sage : "transparent",
+          marginTop: 5,
+          alignSelf: "center",
+        }}
+      />
+      </View>
+    </Pressable>
+  );
+};
+
 /* ── Main screen ───────────────────────────────── */
 
 export default function ExploreScreen({
@@ -212,6 +325,39 @@ export default function ExploreScreen({
   navigation: any;
 }) {
   const headerFade = useRef(new Animated.Value(0)).current;
+  const recentDates = getRecentDates(7);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [cachedDays, setCachedDays] = useState<Record<string, Set<string>>>({});
+
+  const selectedDateStr = getDateString(selectedDate);
+  const isPast = !isToday(selectedDate);
+
+  useFocusEffect(
+    useCallback(() => {
+      checkCachedDates();
+    }, [])
+  );
+
+  const checkCachedDates = async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const dailyKeys = keys.filter((k) => k.startsWith("@daily_"));
+
+      const dayMap: Record<string, Set<string>> = {};
+      for (const key of dailyKeys) {
+        const parts = key.split("_");
+        if (parts.length >= 3) {
+          const dateStr = parts.slice(2).join("_");
+          const type = parts[1];
+          if (!dayMap[dateStr]) dayMap[dateStr] = new Set();
+          dayMap[dateStr].add(type);
+        }
+      }
+      setCachedDays(dayMap);
+    } catch (err) {
+      console.warn("Cache check error:", err);
+    }
+  };
 
   useEffect(() => {
     Animated.timing(headerFade, {
@@ -222,7 +368,21 @@ export default function ExploreScreen({
   }, []);
 
   const handleTilePress = (type: DailyContentType) => {
-    navigation.navigate("DailyContentScreen", { type });
+    navigation.navigate("DailyContentScreen", {
+      type,
+      date: selectedDateStr,
+    });
+  };
+
+  const hasContentForDate = (dateStr: string): boolean => {
+    return !!cachedDays[dateStr] && cachedDays[dateStr].size > 0;
+  };
+
+  const hasTileContentForDate = (
+    dateStr: string,
+    type: DailyContentType
+  ): boolean => {
+    return !!cachedDays[dateStr]?.has(type);
   };
 
   return (
@@ -233,7 +393,6 @@ export default function ExploreScreen({
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: 20,
           paddingTop: 36,
           paddingBottom: 40,
         }}
@@ -244,7 +403,8 @@ export default function ExploreScreen({
           style={{
             opacity: headerFade,
             alignItems: "center",
-            marginBottom: 36,
+            marginBottom: 28,
+            paddingHorizontal: 20,
           }}
         >
           <DiamondAccent />
@@ -279,6 +439,7 @@ export default function ExploreScreen({
             flexWrap: "wrap",
             justifyContent: "space-between",
             rowGap: 14,
+            paddingHorizontal: 20,
           }}
         >
           {TILES.map((tile, i) => (
@@ -287,13 +448,20 @@ export default function ExploreScreen({
               config={tile}
               index={i}
               onPress={() => handleTilePress(tile.type)}
+              isPast={isPast}
+              hasContent={hasTileContentForDate(selectedDateStr, tile.type)}
             />
           ))}
         </View>
 
         {/* Gentle footer */}
         <Animated.View
-          style={{ opacity: headerFade, marginTop: 36, alignItems: "center" }}
+          style={{
+            opacity: headerFade,
+            marginTop: 36,
+            alignItems: "center",
+            paddingHorizontal: 20,
+          }}
         >
           <Text
             style={{
@@ -306,8 +474,98 @@ export default function ExploreScreen({
               maxWidth: 240,
             }}
           >
-            New content blooms each day.{"\n"}Return often and let your garden grow.
+            New content blooms each day.{"\n"}Return often and let your garden
+            grow.
           </Text>
+        </Animated.View>
+
+        {/* ── Past Reflections ─────────────────── */}
+        <Animated.View
+          style={{
+            opacity: headerFade,
+            marginTop: 32,
+            paddingHorizontal: 20,
+          }}
+        >
+          {/* Thin divider */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+              gap: 8,
+            }}
+          >
+            <View
+              style={{
+                flex: 1,
+                height: 1,
+                backgroundColor: "rgba(135,169,107,0.12)",
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "600",
+                color: Colors.charcoalMuted,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+              }}
+            >
+              Past Reflections
+            </Text>
+            <View
+              style={{
+                flex: 1,
+                height: 1,
+                backgroundColor: "rgba(135,169,107,0.12)",
+              }}
+            />
+          </View>
+
+          {/* Date pills — use a regular View with flexbox to spread evenly */}
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {[...recentDates].reverse().map((date) => {
+              const dateStr = getDateString(date);
+              return (
+                <DatePill
+                  key={dateStr}
+                  date={date}
+                  isSelected={selectedDateStr === dateStr}
+                  hasAnyContent={hasContentForDate(dateStr)}
+                  onPress={() => setSelectedDate(date)}
+                />
+              );
+            })}
+          </View>
+
+          {/* Viewing past date label */}
+          {isPast && (
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 12,
+                color: Colors.charcoalMuted,
+                fontStyle: "italic",
+                marginTop: 10,
+                fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+              }}
+            >
+              Viewing {MONTH_NAMES[selectedDate.getMonth()]}{" "}
+              {selectedDate.getDate()} —{" "}
+              {hasContentForDate(selectedDateStr)
+                ? "tap a tile to revisit"
+                : "no reflections saved"}
+            </Text>
+          )}
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
