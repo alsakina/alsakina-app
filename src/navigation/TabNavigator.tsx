@@ -1,10 +1,11 @@
+// navigation/TabNavigator.tsx
 import React from "react";
 import { Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Heart, BookOpen, NotebookPen, Sprout } from "lucide-react-native";
 
 import HomeScreen from "../screens/HomeScreen";
-import LearnScreen from "../screens/LearnScreen";
+import LibraryStack from "./LibraryStack";
 import JournalScreen from "../screens/JournalScreen";
 import ExploreScreen from "../screens/ExploreScreen";
 import { Colors } from "../lib/theme";
@@ -44,7 +45,7 @@ export default function TabNavigator() {
       />
       <Tab.Screen
         name="Library"
-        component={LearnScreen}
+        component={LibraryStack}
         options={{
           tabBarIcon: ({ color, size }) => <BookOpen size={size - 2} color={color} />,
         }}
