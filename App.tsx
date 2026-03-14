@@ -1,18 +1,26 @@
-import "./global.css";
+// App.tsx (or your root entry point)
+// ─────────────────────────────────────────────────
+// Wrap the app with Auth and Premium providers.
+// Adjust to match your existing App.tsx structure.
+// ─────────────────────────────────────────────────
 
 import React from "react";
-import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import TabNavigator from "./src/navigation/TabNavigator";
+import { AuthProvider } from "./src/lib/AuthContext";
+import { PremiumProvider } from "./src/lib/PremiumContext";
+import RootNavigator from "./src/navigation/RootNavigator";
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <TabNavigator />
-      </NavigationContainer>
+      <AuthProvider>
+        <PremiumProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </PremiumProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

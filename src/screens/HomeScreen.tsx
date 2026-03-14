@@ -11,10 +11,16 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Send, RefreshCw } from "lucide-react-native";
+import { useNavigation } from "@react-navigation/native";
+import { Send, RefreshCw, Sparkles, Bookmark } from "lucide-react-native";
 import { Colors } from "../lib/theme";
+import { useAuth } from "../lib/AuthContext";
+import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
+import { supabase } from "../lib/supabase";
+import { encryptJournalEntry } from "../lib/encryption";
 import {
   fetchSpiritualGuidance,
   SpiritualGuidance,
@@ -86,8 +92,12 @@ const NameCard = ({
       }}
     >
       <View
-        className="bg-white rounded-3xl p-6 border border-sage/10"
         style={{
+          backgroundColor: "white",
+          borderRadius: 24,
+          padding: 24,
+          borderWidth: 1,
+          borderColor: "rgba(135,169,107,0.1)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.04,
@@ -97,8 +107,11 @@ const NameCard = ({
       >
         {/* Arabic name */}
         <Text
-          className="text-center text-charcoal text-3xl mb-1"
           style={{
+            textAlign: "center",
+            color: Colors.charcoal,
+            fontSize: 30,
+            marginBottom: 4,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
           }}
         >
@@ -106,10 +119,24 @@ const NameCard = ({
         </Text>
 
         {/* Transliteration + meaning */}
-        <Text className="text-center text-sage text-base font-semibold">
+        <Text
+          style={{
+            textAlign: "center",
+            color: Colors.sage,
+            fontSize: 16,
+            fontWeight: "600",
+          }}
+        >
           {name.transliteration}
         </Text>
-        <Text className="text-center text-charcoal-muted text-sm mb-4">
+        <Text
+          style={{
+            textAlign: "center",
+            color: Colors.charcoalMuted,
+            fontSize: 14,
+            marginBottom: 16,
+          }}
+        >
           {name.meaning}
         </Text>
 
@@ -124,8 +151,9 @@ const NameCard = ({
 
         {/* Explanation */}
         <Text
-          className="text-charcoal text-sm"
           style={{
+            color: Colors.charcoal,
+            fontSize: 14,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             lineHeight: 24,
           }}
@@ -142,9 +170,13 @@ const NameCard = ({
 const GuidanceResult = ({
   guidance,
   onReset,
+  onSave,
+  saved,
 }: {
   guidance: SpiritualGuidance;
   onReset: () => void;
+  onSave: () => void;
+  saved: boolean;
 }) => {
   const headerFade = useRef(new Animated.Value(0)).current;
 
@@ -161,7 +193,16 @@ const GuidanceResult = ({
       {/* Section header */}
       <Animated.View style={{ opacity: headerFade, marginBottom: 20 }}>
         <DiamondAccent />
-        <Text className="text-center text-sage text-xs tracking-widest uppercase mb-1">
+        <Text
+          style={{
+            textAlign: "center",
+            color: Colors.sage,
+            fontSize: 12,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            marginBottom: 4,
+          }}
+        >
           Names for Your Heart
         </Text>
       </Animated.View>
@@ -181,10 +222,20 @@ const GuidanceResult = ({
             paddingHorizontal: 8,
           }}
         >
-          <View className="bg-white/60 rounded-2xl p-5 border border-sage/5">
+          <View
+            style={{
+              backgroundColor: "rgba(255,255,255,0.6)",
+              borderRadius: 16,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: "rgba(135,169,107,0.05)",
+            }}
+          >
             <Text
-              className="text-charcoal text-sm text-center"
               style={{
+                color: Colors.charcoal,
+                fontSize: 14,
+                textAlign: "center",
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 lineHeight: 24,
                 fontStyle: "italic",
@@ -196,21 +247,65 @@ const GuidanceResult = ({
         </Animated.View>
       ) : null}
 
-      {/* Reset button */}
-      <Pressable
-        onPress={onReset}
+      {/* Action buttons */}
+      <View
         style={{
           flexDirection: "row",
-          alignItems: "center",
           justifyContent: "center",
+          alignItems: "center",
+          gap: 24,
+          marginTop: 8,
           paddingVertical: 12,
         }}
       >
-        <RefreshCw size={16} color={Colors.sage} />
-        <Text className="text-sage text-sm font-medium ml-2">
-          Share another feeling
-        </Text>
-      </Pressable>
+        {/* Save to journal */}
+        <Pressable onPress={() => { if (!saved) onSave(); }}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Bookmark
+              size={16}
+              color={saved ? Colors.sage : Colors.charcoalMuted}
+              fill={saved ? Colors.sage : "transparent"}
+            />
+            <Text
+              style={{
+                color: saved ? Colors.sage : Colors.charcoalMuted,
+                fontSize: 14,
+                fontWeight: "500",
+                marginLeft: 6,
+              }}
+            >
+              {saved ? "Saved" : "Save to Journal"}
+            </Text>
+          </View>
+        </Pressable>
+
+        {/* Divider dot */}
+        <View
+          style={{
+            width: 3,
+            height: 3,
+            borderRadius: 2,
+            backgroundColor: "rgba(135,169,107,0.3)",
+          }}
+        />
+
+        {/* New reflection */}
+        <Pressable onPress={onReset}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <RefreshCw size={16} color={Colors.charcoalMuted} />
+            <Text
+              style={{
+                color: Colors.charcoalMuted,
+                fontSize: 14,
+                fontWeight: "500",
+                marginLeft: 6,
+              }}
+            >
+              New reflection
+            </Text>
+          </View>
+        </Pressable>
+      </View>
     </View>
   );
 };
@@ -242,7 +337,10 @@ const ErrorBanner = ({
     >
       {message}
     </Text>
-    <Pressable onPress={onDismiss} style={{ marginTop: 8, alignItems: "center" }}>
+    <Pressable
+      onPress={onDismiss}
+      style={{ marginTop: 8, alignItems: "center" }}
+    >
       <Text style={{ color: Colors.sage, fontSize: 13, fontWeight: "600" }}>
         Dismiss
       </Text>
@@ -253,20 +351,43 @@ const ErrorBanner = ({
 /* ── Main screen ───────────────────────────────── */
 
 export default function HomeScreen() {
+  const navigation = useNavigation<any>();
+  const { user } = useAuth();
+  const { isPremium, canReflect, reflectionsLeft, incrementReflection } =
+    usePremium();
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [guidance, setGuidance] = useState<SpiritualGuidance | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const handleReflect = useCallback(async () => {
     if (!input.trim()) return;
+
+    // If not signed in, prompt auth first
+    if (!user) {
+      navigation.navigate("Auth");
+      return;
+    }
+
+    // If free user is out of reflections, show paywall
+    if (!canReflect) {
+      navigation.navigate("Paywall");
+      return;
+    }
+
     Keyboard.dismiss();
     setLoading(true);
     setError(null);
+    setSaved(false);
 
     try {
       const result = await fetchSpiritualGuidance(input.trim());
       setGuidance(result);
+
+      // Track usage for free users
+      await incrementReflection();
     } catch (err: any) {
       console.error("Guidance error:", err);
       setError(
@@ -275,16 +396,70 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [input]);
+  }, [input, user, canReflect]);
+
+  const handleSaveToJournal = async () => {
+    if (!user || !guidance) {
+      if (!user) {
+        navigation.navigate("Auth");
+      }
+      return;
+    }
+
+    try {
+      const namesText = guidance.names
+        .map(
+          (n) =>
+            `${n.arabic} — ${n.transliteration} (${n.meaning})\n${n.explanation}`
+        )
+        .join("\n\n");
+
+      const title = `Reflection: ${input.slice(0, 50)}${input.length > 50 ? "…" : ""}`;
+      const body = `My reflection: "${input}"\n\n${namesText}${
+        guidance.closingReflection
+          ? `\n\n${guidance.closingReflection}`
+          : ""
+      }`;
+
+      // Try to encrypt, fall back to plaintext if it fails
+      let saveTitle = title;
+      let saveBody = body;
+      try {
+        const encrypted = await encryptJournalEntry({ title, body });
+        saveTitle = encrypted.title || title;
+        saveBody = encrypted.body;
+      } catch (encErr) {
+        console.warn("Encryption failed, saving as plaintext:", encErr);
+      }
+
+      const { error: dbError } = await supabase.from("journal_entries").insert({
+        user_id: user.id,
+        title: saveTitle,
+        body: saveBody,
+        mood: null,
+      });
+
+      if (dbError) throw dbError;
+
+      setSaved(true);
+    } catch (err: any) {
+      console.error("Save error:", err);
+      Alert.alert("Could not save", err.message || "Please try again.");
+    }
+  };
 
   const handleReset = () => {
     setGuidance(null);
     setInput("");
     setError(null);
+    setSaved(false);
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-cream" edges={["top"]}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: Colors.cream }}
+      edges={["top"]}
+    >
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -302,23 +477,37 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           {guidance ? (
-            <GuidanceResult guidance={guidance} onReset={handleReset} />
+            <GuidanceResult
+              guidance={guidance}
+              onReset={handleReset}
+              onSave={handleSaveToJournal}
+              saved={saved}
+            />
           ) : (
             <>
               {/* Header */}
-              <View className="items-center mb-10">
+              <View style={{ alignItems: "center", marginBottom: 40 }}>
                 <DiamondAccent />
                 <Text
-                  className="text-charcoal text-3xl mb-3 text-center"
                   style={{
-                    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                    color: Colors.charcoal,
+                    fontSize: 30,
+                    marginBottom: 12,
+                    textAlign: "center",
+                    fontFamily:
+                      Platform.OS === "ios" ? "Georgia" : "serif",
                   }}
                 >
                   As-Salāmu ʿAlaykum
                 </Text>
                 <Text
-                  className="text-charcoal-muted text-base text-center leading-6"
-                  style={{ maxWidth: 280 }}
+                  style={{
+                    color: Colors.charcoalMuted,
+                    fontSize: 16,
+                    textAlign: "center",
+                    lineHeight: 24,
+                    maxWidth: 280,
+                  }}
                 >
                   This is your sanctuary.{"\n"}What weighs on your heart
                   today?
@@ -327,13 +516,22 @@ export default function HomeScreen() {
 
               {/* Input area */}
               <View
-                className="bg-white rounded-3xl p-5 border border-sage/10"
-                style={{ minHeight: 120 }}
+                style={{
+                  backgroundColor: "white",
+                  borderRadius: 24,
+                  padding: 20,
+                  borderWidth: 1,
+                  borderColor: "rgba(135,169,107,0.1)",
+                  minHeight: 120,
+                }}
               >
                 <TextInput
-                  className="flex-1 text-charcoal text-base"
                   style={{
-                    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                    flex: 1,
+                    color: Colors.charcoal,
+                    fontSize: 16,
+                    fontFamily:
+                      Platform.OS === "ios" ? "Georgia" : "serif",
                     textAlignVertical: "top",
                     minHeight: 80,
                     lineHeight: 24,
@@ -345,47 +543,125 @@ export default function HomeScreen() {
                   onChangeText={setInput}
                   maxLength={500}
                 />
-                <Text className="text-right text-charcoal-muted text-xs mt-2">
+                <Text
+                  style={{
+                    textAlign: "right",
+                    color: Colors.charcoalMuted,
+                    fontSize: 12,
+                    marginTop: 8,
+                  }}
+                >
                   {input.length}/500
                 </Text>
               </View>
 
+              {/* Reflection counter / sign-in prompt */}
+              <View
+                style={{
+                  alignItems: "center",
+                  marginTop: 16,
+                }}
+              >
+                {!user ? (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: Colors.charcoalMuted,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Sign in to receive personalized reflections
+                  </Text>
+                ) : !isPremium ? (
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: canReflect
+                        ? Colors.charcoalMuted
+                        : "#b44",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {canReflect
+                      ? `${reflectionsLeft} of ${FREE_REFLECTIONS_PER_MONTH} free reflections remaining this month`
+                      : "You've used all free reflections this month"}
+                  </Text>
+                ) : null}
+              </View>
+
               {/* Submit button */}
-              <View style={{ alignItems: "center", marginTop: 20 }}>
+              <View style={{ alignItems: "center", marginTop: 16 }}>
                 <Pressable
                   onPress={handleReflect}
-                  disabled={loading || !input.trim()}
-                  style={({ pressed }) => ({
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingVertical: 14,
-                    paddingHorizontal: 40,
-                    borderRadius: 16,
-                    borderWidth: 1.5,
-                    borderColor: Colors.sage,
-                    backgroundColor: "transparent",
-                    opacity: !input.trim() ? 0.4 : pressed ? 0.7 : 1,
-                  })}
+                  disabled={loading || (!!user && canReflect && !input.trim())}
                 >
-                  {loading ? (
-                    <ActivityIndicator size="small" color={Colors.sage} />
-                  ) : (
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <Send size={18} color={Colors.sage} />
-                      <Text
-                        style={{
-                          color: Colors.sage,
-                          fontSize: 16,
-                          fontWeight: "600",
-                          marginLeft: 8,
-                        }}
-                      >
-                        Reflect
-                      </Text>
-                    </View>
-                  )}
+                  <View
+                    style={{
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexDirection: "row",
+                      paddingVertical: 14,
+                      paddingHorizontal: 40,
+                      borderRadius: 16,
+                      borderWidth: 1.5,
+                      borderColor: Colors.sage,
+                      backgroundColor:
+                        !user || !canReflect
+                          ? Colors.sage
+                          : "transparent",
+                      opacity:
+                        user && canReflect && !input.trim() ? 0.4 : 1,
+                    }}
+                  >
+                    {loading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={!user || !canReflect ? "white" : Colors.sage}
+                      />
+                    ) : !user ? (
+                      <>
+                        <Send size={18} color="white" />
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: 16,
+                            fontWeight: "600",
+                            marginLeft: 8,
+                          }}
+                        >
+                          Sign In to Reflect
+                        </Text>
+                      </>
+                    ) : !canReflect ? (
+                      <>
+                        <Sparkles size={18} color="white" />
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: 16,
+                            fontWeight: "600",
+                            marginLeft: 8,
+                          }}
+                        >
+                          Upgrade to Reflect
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={18} color={Colors.sage} />
+                        <Text
+                          style={{
+                            color: Colors.sage,
+                            fontSize: 16,
+                            fontWeight: "600",
+                            marginLeft: 8,
+                          }}
+                        >
+                          Reflect
+                        </Text>
+                      </>
+                    )}
+                  </View>
                 </Pressable>
               </View>
 

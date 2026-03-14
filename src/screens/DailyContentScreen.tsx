@@ -14,12 +14,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   ChevronLeft,
   RefreshCw,
+  Bookmark,
   BookMarked,
   BookOpen,
   Scroll,
   HandHeart,
 } from "lucide-react-native";
 import { Colors } from "../lib/theme";
+import { useAuth } from "../lib/AuthContext";
+import { supabase } from "../lib/supabase";
 import {
   fetchDailyContent,
   DailyHadith,
@@ -399,9 +402,12 @@ export default function DailyContentScreen({
   const isViewingToday = dateStr === getTodayStr();
   const config = CONTENT_CONFIG[type];
 
+  const { user } = useAuth();
+
   const [content, setContent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bookmarked, setBookmarked] = useState(false);
   const headerFade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -412,7 +418,61 @@ export default function DailyContentScreen({
     }).start();
 
     loadContent();
+    checkBookmark();
   }, []);
+
+  // Check if this content is already bookmarked
+  const checkBookmark = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("saved_content")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("content_type", type)
+        .eq("content_date", dateStr)
+        .single();
+      setBookmarked(!!data);
+    } catch {
+      setBookmarked(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user) {
+      navigation.getParent()?.navigate("Auth") ?? navigation.navigate("Auth");
+      return;
+    }
+    if (!content) return;
+
+    try {
+      if (bookmarked) {
+        // Unsave
+        await supabase
+          .from("saved_content")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("content_type", type)
+          .eq("content_date", dateStr);
+        setBookmarked(false);
+      } else {
+        // Save
+        await supabase.from("saved_content").insert({
+          user_id: user.id,
+          content_type: type,
+          content_date: dateStr,
+          content,
+        });
+        setBookmarked(true);
+      }
+    } catch (err: any) {
+      if (err?.code === "23505") {
+        setBookmarked(true);
+      } else {
+        console.warn("Bookmark error:", err);
+      }
+    }
+  };
 
   // fetchDailyContent in intelligence.ts handles the logic:
   //   1. Tries Supabase first (instant, free)
@@ -661,6 +721,55 @@ export default function DailyContentScreen({
 
         {/* Content */}
         {!loading && !error && renderContent()}
+
+        {/* Bookmark button */}
+        {!loading && !error && content && (
+          <View
+            style={{
+              alignItems: "center",
+              marginTop: 8,
+              paddingTop: 20,
+              borderTopWidth: 1,
+              borderTopColor: "rgba(135,169,107,0.1)",
+            }}
+          >
+            <Pressable onPress={handleBookmark}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 14,
+                  borderWidth: 1.5,
+                  borderColor: bookmarked
+                    ? Colors.sage
+                    : config.accentColor,
+                  backgroundColor: bookmarked
+                    ? "rgba(135,169,107,0.08)"
+                    : "transparent",
+                }}
+              >
+                <Bookmark
+                  size={16}
+                  color={bookmarked ? Colors.sage : config.accentColor}
+                  fill={bookmarked ? Colors.sage : "transparent"}
+                />
+                <Text
+                  style={{
+                    color: bookmarked ? Colors.sage : config.accentColor,
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginLeft: 8,
+                  }}
+                >
+                  {bookmarked ? "Saved — tap to remove" : "Save to Journal"}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

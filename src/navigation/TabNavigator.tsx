@@ -2,11 +2,18 @@
 import React from "react";
 import { Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Heart, BookOpen, NotebookPen, Sprout } from "lucide-react-native";
+import {
+  Heart,
+  BookOpen,
+  Circle,
+  NotebookPen,
+  Sprout,
+} from "lucide-react-native";
 
-import HomeScreen from "../screens/HomeScreen";
+import DhikrScreen from "../screens/DhikrScreen";
 import LibraryStack from "./LibraryStack";
-import JournalScreen from "../screens/JournalScreen";
+import HomeScreen from "../screens/HomeScreen";
+import JournalStack from "./JournalStack";
 import GardenStack from "./GardenStack";
 import { Colors } from "../lib/theme";
 
@@ -37,11 +44,11 @@ export default function TabNavigator() {
       }}
     >
       <Tab.Screen
-        name="Sanctuary"
-        component={HomeScreen}
+        name="Dhikr"
+        component={DhikrScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Heart size={size - 2} color={color} />
+            <Circle size={size - 2} color={color} />
           ),
         }}
       />
@@ -55,8 +62,17 @@ export default function TabNavigator() {
         }}
       />
       <Tab.Screen
+        name="Sanctuary"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Heart size={size - 2} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Journal"
-        component={JournalScreen}
+        component={JournalStack}
         options={{
           tabBarIcon: ({ color, size }) => (
             <NotebookPen size={size - 2} color={color} />
