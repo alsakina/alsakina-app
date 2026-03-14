@@ -19,7 +19,6 @@ import {
   Scroll,
   HandHeart,
 } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../lib/theme";
 import {
   fetchDailyContent,
@@ -59,10 +58,6 @@ const CONTENT_CONFIG: Record<
 };
 
 /* ── Helpers ───────────────────────────────────── */
-
-function cacheKey(type: DailyContentType, dateStr: string): string {
-  return `@daily_${type}_${dateStr}`;
-}
 
 function getTodayStr(): string {
   return new Date().toISOString().split("T")[0];
@@ -419,45 +414,22 @@ export default function DailyContentScreen({
     loadContent();
   }, []);
 
+  // fetchDailyContent in intelligence.ts handles the logic:
+  //   1. Tries Supabase first (instant, free)
+  //   2. Falls back to direct Anthropic API if Supabase has nothing
   const loadContent = async () => {
     setLoading(true);
     setError(null);
-
-    // Check cache
-    const key = cacheKey(type, dateStr);
     try {
-      const cached = await AsyncStorage.getItem(key);
-      if (cached) {
-        setContent(JSON.parse(cached));
-        setLoading(false);
-        return;
-      }
-    } catch (err) {
-      console.warn("Cache read error:", err);
-    }
-
-    // If viewing a past date with no cache, nothing to show
-    if (!isViewingToday) {
-      setLoading(false);
-      setError("No reflection was saved for this day.");
-      return;
-    }
-
-    // Fetch fresh for today
-    await fetchFresh();
-  };
-
-  const fetchFresh = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchDailyContent(type);
-      const key = cacheKey(type, dateStr);
-      await AsyncStorage.setItem(key, JSON.stringify(data));
+      const data = await fetchDailyContent(type, dateStr);
       setContent(data);
     } catch (err: any) {
       console.error("Daily content error:", err);
-      setError("Could not load today's content. Please try again.");
+      setError(
+        isViewingToday
+          ? "Could not load today's content. Please try again."
+          : "No reflection was saved for this day."
+      );
     } finally {
       setLoading(false);
     }
@@ -466,10 +438,10 @@ export default function DailyContentScreen({
   const handleRefresh = () => {
     Alert.alert(
       "Get new content?",
-      "This will replace today's content with a fresh selection.",
+      "This will load fresh content for today.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Refresh", onPress: fetchFresh },
+        { text: "Refresh", onPress: loadContent },
       ]
     );
   };
@@ -660,7 +632,7 @@ export default function DailyContentScreen({
             </Text>
             {isViewingToday && (
               <Pressable
-                onPress={fetchFresh}
+                onPress={loadContent}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",

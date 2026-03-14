@@ -10,9 +10,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BookOpen, BookMarked, Scroll, HandHeart } from "lucide-react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
+import { supabase } from "../lib/supabase";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -340,22 +340,27 @@ export default function ExploreScreen({
 
   const checkCachedDates = async () => {
     try {
-      const keys = await AsyncStorage.getAllKeys();
-      const dailyKeys = keys.filter((k) => k.startsWith("@daily_"));
+      // Get the oldest date in our range
+      const oldest = getDateString(recentDates[recentDates.length - 1]);
+      const newest = getDateString(recentDates[0]);
+
+      const { data, error } = await supabase
+        .from("daily_content")
+        .select("date, type")
+        .gte("date", oldest)
+        .lte("date", newest);
+
+      if (error) throw error;
 
       const dayMap: Record<string, Set<string>> = {};
-      for (const key of dailyKeys) {
-        const parts = key.split("_");
-        if (parts.length >= 3) {
-          const dateStr = parts.slice(2).join("_");
-          const type = parts[1];
-          if (!dayMap[dateStr]) dayMap[dateStr] = new Set();
-          dayMap[dateStr].add(type);
-        }
+      for (const row of data || []) {
+        const dateStr = row.date;
+        if (!dayMap[dateStr]) dayMap[dateStr] = new Set();
+        dayMap[dateStr].add(row.type);
       }
       setCachedDays(dayMap);
     } catch (err) {
-      console.warn("Cache check error:", err);
+      console.warn("Supabase check error:", err);
     }
   };
 

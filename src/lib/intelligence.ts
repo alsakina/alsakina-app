@@ -5,6 +5,8 @@
 // When going public, swap for a backend proxy.
 // ─────────────────────────────────────────────────
 
+import { supabase } from "./supabase";
+
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
 const MODEL = "claude-sonnet-4-20250514";
@@ -244,7 +246,7 @@ export interface DailyDua {
   sincerity: string;     // how saying it with sincerity helps
 }
 
-/* ── System prompts ────────────────────────────── */
+/* ── System prompts (kept for direct API fallback) ── */
 
 const DAILY_HADITH_SYSTEM = `You are a knowledgeable Islamic scholar. Provide a hadith of the day.
 
@@ -325,9 +327,9 @@ const USER_PROMPTS: Record<string, string> = {
   dua: `Give me a du'a of the day for ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}.`,
 };
 
-/* ── Fetch function ────────────────────────────── */
+/* ── Direct API call (fallback if Supabase has no data) ── */
 
-export async function fetchDailyContent(
+async function fetchDailyContentFromAPI(
   type: "hadith" | "verse" | "story" | "dua"
 ): Promise<DailyHadith | DailyVerse | DailyStory | DailyDua> {
   const system = SYSTEM_PROMPTS[type];
@@ -338,4 +340,52 @@ export async function fetchDailyContent(
   const parsed = JSON.parse(raw);
 
   return parsed;
+}
+
+/* ── Main fetch: tries Supabase first, falls back to direct API ── */
+
+export async function fetchDailyContent(
+  type: "hadith" | "verse" | "story" | "dua",
+  date?: string
+): Promise<DailyHadith | DailyVerse | DailyStory | DailyDua> {
+  const targetDate = date || new Date().toISOString().split("T")[0];
+
+  // 1. Try Supabase first
+  try {
+    const { data, error } = await supabase
+      .from("daily_content")
+      .select("content")
+      .eq("date", targetDate)
+      .eq("type", type)
+      .single();
+
+    if (!error && data?.content) {
+      console.log(`Daily ${type}: loaded from Supabase`);
+      return data.content;
+    }
+  } catch (err) {
+    console.warn(`Supabase fetch failed for ${type}, falling back to API:`, err);
+  }
+
+  // 2. Fall back to direct API call
+  console.log(`Daily ${type}: fetching from Anthropic API`);
+  return fetchDailyContentFromAPI(type);
+}
+
+/* ── Check which types are available for a date (for Garden screen dots) ── */
+
+export async function fetchAvailableDailyTypes(
+  date: string
+): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from("daily_content")
+      .select("type")
+      .eq("date", date);
+
+    if (error || !data) return [];
+    return data.map((row: any) => row.type);
+  } catch {
+    return [];
+  }
 }
