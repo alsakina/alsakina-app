@@ -13,6 +13,7 @@ import { BookOpen, BookMarked, Scroll, HandHeart } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
 import { supabase } from "../lib/supabase";
+import ScreenHeader from "../components/ScreenHeader";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -395,10 +396,11 @@ export default function ExploreScreen({
       style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
+      <ScreenHeader />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
-          paddingTop: 36,
+          paddingTop: 12,
           paddingBottom: 40,
         }}
         showsVerticalScrollIndicator={false}

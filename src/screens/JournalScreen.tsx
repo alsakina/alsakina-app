@@ -506,7 +506,10 @@ export default function JournalScreen({
             </Text>
           </View>
           <Pressable
-            onPress={() => navigation.navigate("SettingsScreen")}
+            onPress={() => {
+              const root = navigation.getParent()?.getParent?.() || navigation.getParent() || navigation;
+              root.navigate("SettingsScreen");
+            }}
             hitSlop={12}
             style={{ padding: 4 }}
           >

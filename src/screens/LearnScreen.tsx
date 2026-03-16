@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Search, X } from "lucide-react-native";
 import { Colors } from "../lib/theme";
 import { NAMES_OF_ALLAH, NameEntry } from "../lib/namesData";
+import ScreenHeader from "../components/ScreenHeader";
 
 /* ── Decorative diamond accent ─────────────────── */
 
@@ -59,7 +60,7 @@ const NameRow = React.memo(
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 400,
-        delay: Math.min(index * 30, 600), // cap stagger so later items aren't invisible long
+        delay: Math.min(index * 30, 600),
         useNativeDriver: true,
       }).start();
     }, []);
@@ -102,7 +103,6 @@ const NameRow = React.memo(
                 justifyContent: "center",
               }}
             >
-              {/* Rotated diamond background */}
               <View
                 style={{
                   position: "absolute",
@@ -113,7 +113,6 @@ const NameRow = React.memo(
                   transform: [{ rotate: "45deg" }],
                 }}
               />
-              {/* Number text (not rotated) */}
               <Text
                 style={{
                   fontSize: 13,
@@ -218,8 +217,10 @@ export default function LearnScreen({
       style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
+      <ScreenHeader />
+
       {/* Header */}
-      <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 8 }}>
+      <View style={{ paddingHorizontal: 24, paddingTop: 4, paddingBottom: 8 }}>
         <DiamondAccent />
         <Text
           style={{

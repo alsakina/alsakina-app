@@ -10,6 +10,7 @@ import TabNavigator from "./TabNavigator";
 import AuthScreen from "../screens/AuthScreen";
 import PaywallScreen from "../screens/PaywallScreen";
 import DailyContentScreen from "../screens/DailyContentScreen";
+import SettingsScreen from "../screens/SettingsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +31,10 @@ export default function RootNavigator() {
       <Stack.Screen
         name="DailyContentScreen"
         component={DailyContentScreen}
+      />
+      <Stack.Screen
+        name="SettingsScreen"
+        component={SettingsScreen}
       />
     </Stack.Navigator>
   );

@@ -21,6 +21,7 @@ import { useAuth } from "../lib/AuthContext";
 import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import { encryptJournalEntry } from "../lib/encryption";
+import ScreenHeader from "../components/ScreenHeader";
 import {
   fetchSpiritualGuidance,
   SpiritualGuidance,
@@ -460,6 +461,7 @@ export default function HomeScreen() {
       style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
+      <ScreenHeader />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

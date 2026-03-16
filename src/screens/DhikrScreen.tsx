@@ -15,6 +15,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
+import ScreenHeader from "../components/ScreenHeader";
 
 /* ── Built-in dhikr options ────────────────────── */
 
@@ -349,12 +350,13 @@ export default function DhikrScreen() {
       style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
+      <ScreenHeader />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
           flexGrow: 1,
           paddingHorizontal: 20,
-          paddingTop: 24,
+          paddingTop: 8,
           paddingBottom: 40,
         }}
         showsVerticalScrollIndicator={false}
