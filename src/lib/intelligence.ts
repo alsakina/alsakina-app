@@ -348,7 +348,14 @@ export async function fetchDailyContent(
   type: "hadith" | "verse" | "story" | "dua",
   date?: string
 ): Promise<DailyHadith | DailyVerse | DailyStory | DailyDua> {
-  const targetDate = date || new Date().toISOString().split("T")[0];
+  if (!date) {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    date = `${y}-${m}-${day}`;
+  }
+  const targetDate = date;
 
   // 1. Try Supabase first
   try {
@@ -388,4 +395,117 @@ export async function fetchAvailableDailyTypes(
   } catch {
     return [];
   }
+}
+
+/* ══════════════════════════════════════════════════
+   4. AI Journal Prompts (Premium)
+   ══════════════════════════════════════════════════ */
+
+export interface JournalPrompt {
+  prompt: string;       // the question or topic
+  context: string;      // brief note on why this was suggested (1 sentence)
+}
+
+const JOURNAL_PROMPTS_SYSTEM = `You are a compassionate Islamic spiritual companion helping someone with their journaling practice.
+
+Based on the user's recent journal entries and moods, generate 3 personalized journaling prompts. Each prompt should:
+- Be a thoughtful, open-ended question or reflection topic
+- Connect to Islamic spirituality naturally (not forced)
+- Build on what the person has been experiencing lately
+- Feel warm and inviting, not clinical or preachy
+
+If no recent entries are provided, generate general Islamic reflection prompts that are seasonally or spiritually relevant.
+
+Respond ONLY with valid JSON — no markdown, no backticks, no preamble:
+{
+  "prompts": [
+    { "prompt": "The question or topic to reflect on", "context": "Why this was suggested — 1 short sentence" }
+  ]
+}`;
+
+export async function fetchJournalPrompts(
+  recentEntries: { body: string; mood: string | null; created_at: string }[]
+): Promise<JournalPrompt[]> {
+  let userMsg: string;
+
+  if (recentEntries.length > 0) {
+    const summaries = recentEntries
+      .slice(0, 5) // max 5 recent entries
+      .map((e, i) => {
+        const date = new Date(e.created_at).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        const moodStr = e.mood ? ` (mood: ${e.mood})` : "";
+        // Truncate body to avoid sending too much
+        const preview = e.body.slice(0, 150);
+        return `${date}${moodStr}: ${preview}`;
+      })
+      .join("\n");
+
+    userMsg = `Here are my recent journal reflections:\n\n${summaries}\n\nGenerate 3 personalized prompts for my next journal entry.`;
+  } else {
+    userMsg = `I haven't written any journal entries yet. Generate 3 welcoming Islamic reflection prompts to help me start my journaling practice.`;
+  }
+
+  const raw = await callClaude(JOURNAL_PROMPTS_SYSTEM, userMsg, 1024);
+  const parsed = JSON.parse(raw);
+  return parsed.prompts;
+}
+
+/* ══════════════════════════════════════════════════
+   5. Weekly Spiritual Insights (Premium)
+   ══════════════════════════════════════════════════ */
+
+export interface WeeklyInsight {
+  summary: string;          // 3-4 sentence overview of the week
+  moodPattern: string;      // observation about emotional/spiritual patterns
+  growth: string;           // what growth or positive signs were noticed
+  quranicReflection: string; // a relevant Quran verse or Name of Allah tied to their week
+  quranicReference: string;  // the reference (e.g. "Surah Ash-Sharh 94:5-6")
+  suggestion: string;       // one gentle suggestion for the coming week
+  duaForWeek: string;       // a short du'a relevant to their situation
+}
+
+const WEEKLY_INSIGHTS_SYSTEM = `You are a compassionate Islamic spiritual mentor providing a weekly reflection summary.
+
+Based on the user's journal entries from the past week, provide a warm, insightful spiritual summary. You are NOT a therapist — you are a caring older sibling in faith who sees the best in them and gently encourages growth.
+
+Your tone should be:
+- Warm and personal (use "you" not "one")
+- Observant but not judgmental
+- Connected to Islamic spirituality naturally
+- Encouraging without being dismissive of struggles
+
+Respond ONLY with valid JSON — no markdown, no backticks, no preamble:
+{
+  "summary": "A 3-4 sentence overview of their spiritual week — what themes emerged, how they seem to be feeling overall.",
+  "moodPattern": "An observation about their emotional/spiritual patterns this week (2-3 sentences). What shifted? What stayed constant?",
+  "growth": "What positive signs of growth you noticed, even if small (2-3 sentences). Acknowledge effort and intention.",
+  "quranicReflection": "A relevant Quran verse or hadith that connects to their week — explain why it's relevant in 2-3 sentences.",
+  "quranicReference": "The reference (e.g. Surah Ash-Sharh 94:5-6 or Sahih Bukhari 6137)",
+  "suggestion": "One gentle, practical suggestion for the coming week (2-3 sentences). Something specific they can do.",
+  "duaForWeek": "A short du'a (in English) that is relevant to what they're going through."
+}`;
+
+export async function fetchWeeklyInsights(
+  weekEntries: { body: string; mood: string | null; created_at: string }[]
+): Promise<WeeklyInsight> {
+  const summaries = weekEntries
+    .map((e) => {
+      const date = new Date(e.created_at).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      const moodStr = e.mood ? ` (mood: ${e.mood})` : "";
+      const preview = e.body.slice(0, 200);
+      return `${date}${moodStr}: ${preview}`;
+    })
+    .join("\n\n");
+
+  const userMsg = `Here are my journal entries from this past week:\n\n${summaries}\n\nPlease give me my weekly spiritual insight.`;
+
+  const raw = await callClaude(WEEKLY_INSIGHTS_SYSTEM, userMsg, 1536);
+  return JSON.parse(raw);
 }

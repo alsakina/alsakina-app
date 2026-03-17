@@ -16,10 +16,13 @@ import {
   NotebookPen,
   Settings,
   Trash2,
+  TrendingUp,
+  Sparkles,
 } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
+import { usePremium } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import { decryptJournalEntry } from "../lib/encryption";
 
@@ -152,6 +155,7 @@ const EntryRow = ({
   });
 
   return (
+    <View style={{ marginBottom: 16 }}>
     <Pressable
       onPress={onPress}
       onLongPress={() => {
@@ -160,16 +164,16 @@ const EntryRow = ({
           { text: "Delete", style: "destructive", onPress: onDelete },
         ]);
       }}
-      style={({ pressed }) => ({
-        backgroundColor: "white",
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "rgba(135,169,107,0.08)",
-        opacity: pressed ? 0.85 : 1,
-      })}
     >
+      <View
+        style={{
+          backgroundColor: "white",
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: "rgba(135,169,107,0.08)",
+        }}
+      >
       <View
         style={{
           flexDirection: "row",
@@ -228,7 +232,9 @@ const EntryRow = ({
           </Text>
         </View>
       )}
+      </View>
     </Pressable>
+    </View>
   );
 };
 
@@ -267,6 +273,7 @@ const SavedRow = ({
       : item.content.translation?.slice(0, 80);
 
   return (
+    <View style={{ marginBottom: 16 }}>
     <Pressable
       onPress={onPress}
       onLongPress={() => {
@@ -275,16 +282,16 @@ const SavedRow = ({
           { text: "Remove", style: "destructive", onPress: onRemove },
         ]);
       }}
-      style={({ pressed }) => ({
-        backgroundColor: "white",
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: "rgba(135,169,107,0.08)",
-        opacity: pressed ? 0.85 : 1,
-      })}
     >
+      <View
+        style={{
+          backgroundColor: "white",
+          borderRadius: 16,
+          padding: 16,
+          borderWidth: 1,
+          borderColor: "rgba(135,169,107,0.08)",
+        }}
+      >
       <View
         style={{
           flexDirection: "row",
@@ -324,7 +331,9 @@ const SavedRow = ({
           {preview}
         </Text>
       )}
+      </View>
     </Pressable>
+    </View>
   );
 };
 
@@ -336,6 +345,7 @@ export default function JournalScreen({
   navigation: any;
 }) {
   const { user } = useAuth();
+  const { isPremium } = usePremium();
   const headerFade = useRef(new Animated.Value(0)).current;
   const [activeTab, setActiveTab] = useState<TabType>("entries");
   const [entries, setEntries] = useState<JournalEntry[]>([]);
@@ -383,7 +393,7 @@ export default function JournalScreen({
           .from("saved_content")
           .select("*")
           .eq("user_id", user.id)
-          .order("saved_at", { ascending: false })
+          .order("content_date", { ascending: false })
           .limit(50);
         setSavedItems(data || []);
       }
@@ -529,6 +539,76 @@ export default function JournalScreen({
             paddingHorizontal: 20,
             paddingBottom: 100,
           }}
+          ListHeaderComponent={
+            isPremium ? (
+              <Pressable
+                onPress={() => {
+                  const root =
+                    navigation.getParent()?.getParent?.() ||
+                    navigation.getParent() ||
+                    navigation;
+                  root.navigate("WeeklyInsightsScreen");
+                }}
+              >
+                <View
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: 18,
+                    padding: 16,
+                    marginBottom: 16,
+                    borderWidth: 1.5,
+                    borderColor: "rgba(135,169,107,0.15)",
+                    flexDirection: "row",
+                    alignItems: "center",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      backgroundColor: "rgba(135,169,107,0.1)",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 14,
+                    }}
+                  >
+                    <TrendingUp size={20} color={Colors.sage} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "700",
+                        color: Colors.charcoal,
+                        marginBottom: 2,
+                      }}
+                    >
+                      Weekly Insights
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: Colors.charcoalMuted,
+                      }}
+                    >
+                      See your spiritual growth this week
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      backgroundColor: "rgba(135,169,107,0.08)",
+                      borderRadius: 8,
+                      paddingVertical: 4,
+                      paddingHorizontal: 8,
+                    }}
+                  >
+                    <Sparkles size={14} color={Colors.sage} />
+                  </View>
+                </View>
+              </Pressable>
+            ) : null
+          }
           renderItem={({ item }) => (
             <EntryRow
               entry={item}

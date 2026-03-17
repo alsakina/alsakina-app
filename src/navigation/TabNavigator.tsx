@@ -22,6 +22,7 @@ const Tab = createBottomTabNavigator();
 export default function TabNavigator() {
   return (
     <Tab.Navigator
+      initialRouteName="Sanctuary"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: Colors.sage,

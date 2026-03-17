@@ -17,6 +17,16 @@ import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
 import ScreenHeader from "../components/ScreenHeader";
 
+/* ── Date helper (local timezone) ──────────────── */
+
+function getTodayLocal(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /* ── Built-in dhikr options ────────────────────── */
 
 interface DhikrOption {
@@ -243,7 +253,7 @@ export default function DhikrScreen() {
 
   const loadTodayCount = async () => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayLocal();
     try {
       const { data } = await supabase
         .from("dhikr_logs")
@@ -305,7 +315,7 @@ export default function DhikrScreen() {
 
     // Save to Supabase
     if (user) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayLocal();
       try {
         const { data: existing } = await supabase
           .from("dhikr_logs")

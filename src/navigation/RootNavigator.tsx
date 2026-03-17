@@ -11,6 +11,7 @@ import AuthScreen from "../screens/AuthScreen";
 import PaywallScreen from "../screens/PaywallScreen";
 import DailyContentScreen from "../screens/DailyContentScreen";
 import SettingsScreen from "../screens/SettingsScreen";
+import WeeklyInsightsScreen from "../screens/WeeklyInsightsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -35,6 +36,10 @@ export default function RootNavigator() {
       <Stack.Screen
         name="SettingsScreen"
         component={SettingsScreen}
+      />
+      <Stack.Screen
+        name="WeeklyInsightsScreen"
+        component={WeeklyInsightsScreen}
       />
     </Stack.Navigator>
   );

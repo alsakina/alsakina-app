@@ -12,11 +12,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Check } from "lucide-react-native";
+import { ChevronLeft, Check, Sparkles } from "lucide-react-native";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
+import { usePremium } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import { encryptJournalEntry, decryptJournalEntry } from "../lib/encryption";
+import { fetchJournalPrompts, JournalPrompt } from "../lib/intelligence";
 
 const MOODS = [
   "Grateful",
@@ -37,6 +39,7 @@ export default function JournalEntryScreen({
   navigation: any;
 }) {
   const { user } = useAuth();
+  const { isPremium } = usePremium();
   const entryId = route.params?.entryId;
   const isEditing = !!entryId;
 
@@ -45,10 +48,48 @@ export default function JournalEntryScreen({
   const [mood, setMood] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
+  const [prompts, setPrompts] = useState<JournalPrompt[]>([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
 
   useEffect(() => {
     if (isEditing) loadEntry();
+    if (!isEditing && isPremium) loadPrompts();
   }, []);
+
+  const loadPrompts = async () => {
+    if (!user) return;
+    setLoadingPrompts(true);
+    try {
+      // Get recent entries for context
+      const { data: recent } = await supabase
+        .from("journal_entries")
+        .select("body, mood, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      // Decrypt them
+      let decrypted: any[] = [];
+      if (recent && recent.length > 0) {
+        decrypted = await Promise.all(
+          recent.map(async (e) => {
+            try {
+              return await decryptJournalEntry(e);
+            } catch {
+              return e;
+            }
+          })
+        );
+      }
+
+      const result = await fetchJournalPrompts(decrypted);
+      setPrompts(result);
+    } catch (err) {
+      console.warn("Prompts error:", err);
+    } finally {
+      setLoadingPrompts(false);
+    }
+  };
 
   const loadEntry = async () => {
     try {
@@ -295,6 +336,100 @@ export default function JournalEntryScreen({
               </Pressable>
             ))}
           </ScrollView>
+
+          {/* AI Prompts (premium, new entries only) */}
+          {!isEditing && isPremium && (prompts.length > 0 || loadingPrompts) && (
+            <View style={{ marginBottom: 16 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <Sparkles size={14} color={Colors.sage} />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: Colors.sage,
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                    marginLeft: 6,
+                  }}
+                >
+                  Suggested Prompts
+                </Text>
+              </View>
+              {loadingPrompts ? (
+                <View
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: 14,
+                    padding: 16,
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: "rgba(135,169,107,0.08)",
+                  }}
+                >
+                  <ActivityIndicator size="small" color={Colors.sage} />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: Colors.charcoalMuted,
+                      marginTop: 8,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    Preparing prompts for you…
+                  </Text>
+                </View>
+              ) : (
+                prompts.map((p, i) => (
+                  <Pressable
+                    key={i}
+                    onPress={() => {
+                      setBody(p.prompt + "\n\n");
+                      setPrompts([]); // hide after selection
+                    }}
+                  >
+                    <View
+                      style={{
+                        backgroundColor: "white",
+                        borderRadius: 14,
+                        padding: 14,
+                        marginBottom: 8,
+                        borderWidth: 1,
+                        borderColor: "rgba(135,169,107,0.1)",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: Colors.charcoal,
+                          fontFamily:
+                            Platform.OS === "ios" ? "Georgia" : "serif",
+                          lineHeight: 20,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {p.prompt}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: Colors.charcoalMuted,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {p.context}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          )}
 
           {/* Body */}
           <View

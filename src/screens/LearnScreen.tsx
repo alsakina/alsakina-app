@@ -10,10 +10,25 @@ import {
   TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Search, X } from "lucide-react-native";
+import { Search, X, Star } from "lucide-react-native";
 import { Colors } from "../lib/theme";
 import { NAMES_OF_ALLAH, NameEntry } from "../lib/namesData";
+import { NAME_DETAILS } from "../lib/nameDetailsData";
 import ScreenHeader from "../components/ScreenHeader";
+
+/* ── Name of the Day helper ────────────────────── */
+
+function getNameOfTheDay(): NameEntry {
+  // Deterministic daily rotation through all 99 names
+  // Same name for all users on the same day
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor(
+    (now.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const index = dayOfYear % 99;
+  return NAMES_OF_ALLAH[index];
+}
 
 /* ── Decorative diamond accent ─────────────────── */
 
@@ -41,6 +56,248 @@ const DiamondAccent = () => (
     ))}
   </View>
 );
+
+/* ── Name of the Day card ──────────────────────── */
+
+const NameOfTheDayCard = ({
+  name,
+  onPress,
+}: {
+  name: NameEntry;
+  onPress: () => void;
+}) => {
+  const detail = NAME_DETAILS[name.id];
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+        marginHorizontal: 20,
+        marginBottom: 20,
+      }}
+    >
+      <Pressable onPress={onPress}>
+        <View
+          style={{
+            backgroundColor: "white",
+            borderRadius: 22,
+            borderWidth: 1.5,
+            borderColor: "rgba(135,169,107,0.2)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Label bar */}
+          <View
+            style={{
+              backgroundColor: "rgba(135,169,107,0.08)",
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingVertical: 8,
+              gap: 6,
+            }}
+          >
+            <Star size={12} color={Colors.sage} fill={Colors.sage} />
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "700",
+                color: Colors.sage,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+              }}
+            >
+              Name of the Day
+            </Text>
+            <Star size={12} color={Colors.sage} fill={Colors.sage} />
+          </View>
+
+          {/* Content */}
+          <View style={{ padding: 22, alignItems: "center" }}>
+            {/* Arabic */}
+            <Text
+              style={{
+                fontSize: 36,
+                color: Colors.charcoal,
+                fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                marginBottom: 6,
+              }}
+            >
+              {name.arabic}
+            </Text>
+
+            {/* Transliteration */}
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "600",
+                color: Colors.sage,
+                marginBottom: 2,
+              }}
+            >
+              {name.transliteration}
+            </Text>
+
+            {/* Meaning */}
+            <Text
+              style={{
+                fontSize: 14,
+                color: Colors.charcoalMuted,
+                marginBottom: 16,
+              }}
+            >
+              {name.meaning}
+            </Text>
+
+            {/* Divider */}
+            <View
+              style={{
+                width: 40,
+                height: 1,
+                backgroundColor: "rgba(135,169,107,0.2)",
+                marginBottom: 16,
+              }}
+            />
+
+            {/* Overview preview */}
+            {detail?.overview ? (
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: Colors.charcoal,
+                  fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                  lineHeight: 22,
+                  textAlign: "center",
+                  marginBottom: 12,
+                }}
+                numberOfLines={3}
+              >
+                {detail.overview}
+              </Text>
+            ) : null}
+
+            {/* Quranic reference preview */}
+            {detail?.quranicVerses?.[0] ? (
+              <View
+                style={{
+                  backgroundColor: "rgba(135,169,107,0.05)",
+                  borderRadius: 12,
+                  padding: 12,
+                  borderLeftWidth: 3,
+                  borderLeftColor: "rgba(135,169,107,0.3)",
+                  alignSelf: "stretch",
+                  marginBottom: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: Colors.charcoal,
+                    fontStyle: "italic",
+                    lineHeight: 20,
+                    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                  }}
+                  numberOfLines={2}
+                >
+                  "{detail.quranicVerses[0].translation}"
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: Colors.sage,
+                    fontWeight: "600",
+                    marginTop: 6,
+                  }}
+                >
+                  — {detail.quranicVerses[0].reference}
+                </Text>
+              </View>
+            ) : null}
+
+            {/* Du'a preview */}
+            {detail?.dua ? (
+              <View
+                style={{
+                  backgroundColor: "rgba(155,123,143,0.05)",
+                  borderRadius: 12,
+                  padding: 12,
+                  alignSelf: "stretch",
+                  marginBottom: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: "#9B7B8F",
+                    letterSpacing: 1,
+                    textTransform: "uppercase",
+                    marginBottom: 6,
+                  }}
+                >
+                  Related Du'a
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: Colors.charcoal,
+                    fontStyle: "italic",
+                    lineHeight: 20,
+                    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                  }}
+                  numberOfLines={2}
+                >
+                  "{detail.dua.translation}"
+                </Text>
+                {detail.dua.source ? (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: "#9B7B8F",
+                      fontWeight: "600",
+                      marginTop: 6,
+                    }}
+                  >
+                    — {detail.dua.source}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* CTA */}
+            <Text
+              style={{
+                fontSize: 13,
+                color: Colors.sage,
+                fontWeight: "600",
+              }}
+            >
+              Tap to explore in full →
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+};
 
 /* ── Single name row ───────────────────────────── */
 
@@ -175,6 +432,7 @@ export default function LearnScreen({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<TextInput>(null);
+  const nameOfDay = getNameOfTheDay();
 
   const filteredNames = searchQuery.trim()
     ? NAMES_OF_ALLAH.filter(
@@ -299,6 +557,14 @@ export default function LearnScreen({
         initialNumToRender={15}
         maxToRenderPerBatch={20}
         windowSize={10}
+        ListHeaderComponent={
+          !searchQuery.trim() ? (
+            <NameOfTheDayCard
+              name={nameOfDay}
+              onPress={() => handlePress(nameOfDay)}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           <View style={{ alignItems: "center", marginTop: 60 }}>
             <Text
