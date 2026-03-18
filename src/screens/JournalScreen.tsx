@@ -8,6 +8,7 @@ import {
   Animated,
   Platform,
   Alert,
+  PanResponder,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -137,6 +138,131 @@ const TabToggle = ({
   </View>
 );
 
+/* ── Swipeable row (pure RN) ────────────────────── */
+
+const SwipeableRow = ({
+  children,
+  onAction,
+  actionLabel,
+  actionColor,
+  actionIcon,
+}: {
+  children: React.ReactNode;
+  onAction: () => void;
+  actionLabel: string;
+  actionColor: string;
+  actionIcon: React.ReactNode;
+}) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const isOpen = useRef(false);
+  const ACTION_WIDTH = 80;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderMove: (_, gesture) => {
+        if (gesture.dx < 0) {
+          // Only allow left swipe
+          translateX.setValue(Math.max(gesture.dx, -ACTION_WIDTH));
+        } else if (isOpen.current) {
+          translateX.setValue(Math.min(0, -ACTION_WIDTH + gesture.dx));
+        }
+      },
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx < -40) {
+          // Open
+          Animated.spring(translateX, {
+            toValue: -ACTION_WIDTH,
+            useNativeDriver: true,
+            bounciness: 5,
+          }).start();
+          isOpen.current = true;
+        } else {
+          // Close
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 5,
+          }).start();
+          isOpen.current = false;
+        }
+      },
+    })
+  ).current;
+
+  const handleAction = () => {
+    onAction();
+    // Snap back after action
+    Animated.timing(translateX, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+    isOpen.current = false;
+  };
+
+  return (
+    <View
+      style={{
+        marginBottom: 16,
+        overflow: "hidden",
+        borderRadius: 16,
+      }}
+    >
+      {/* Action button (behind the card) */}
+      <View
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 0,
+          bottom: 0,
+          width: ACTION_WIDTH,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Pressable onPress={handleAction}>
+          <View
+            style={{
+              backgroundColor: actionColor,
+              borderRadius: 14,
+              width: ACTION_WIDTH - 8,
+              height: "100%",
+              minHeight: 60,
+              justifyContent: "center",
+              alignItems: "center",
+              paddingVertical: 12,
+            }}
+          >
+            {actionIcon}
+            <Text
+              style={{
+                color: "white",
+                fontSize: 11,
+                fontWeight: "600",
+                marginTop: 4,
+              }}
+            >
+              {actionLabel}
+            </Text>
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Sliding card */}
+      <Animated.View
+        style={{
+          transform: [{ translateX }],
+        }}
+        {...panResponder.panHandlers}
+      >
+        {children}
+      </Animated.View>
+    </View>
+  );
+};
+
 /* ── Journal entry row ─────────────────────────── */
 
 const EntryRow = ({
@@ -154,17 +280,21 @@ const EntryRow = ({
     day: "numeric",
   });
 
+  const handleDelete = () => {
+    Alert.alert("Delete entry?", "This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: onDelete },
+    ]);
+  };
+
   return (
-    <View style={{ marginBottom: 16 }}>
-    <Pressable
-      onPress={onPress}
-      onLongPress={() => {
-        Alert.alert("Delete entry?", "This cannot be undone.", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Delete", style: "destructive", onPress: onDelete },
-        ]);
-      }}
+    <SwipeableRow
+      onAction={handleDelete}
+      actionLabel="Delete"
+      actionColor="rgba(180,68,68,0.85)"
+      actionIcon={<Trash2 size={18} color="white" />}
     >
+    <Pressable onPress={onPress}>
       <View
         style={{
           backgroundColor: "white",
@@ -234,7 +364,7 @@ const EntryRow = ({
       )}
       </View>
     </Pressable>
-    </View>
+    </SwipeableRow>
   );
 };
 
@@ -262,7 +392,6 @@ const SavedRow = ({
     day: "numeric",
   });
 
-  // Get a preview text based on content type
   const preview =
     item.content_type === "hadith"
       ? item.content.english?.slice(0, 80)
@@ -272,17 +401,21 @@ const SavedRow = ({
       ? item.content.title
       : item.content.translation?.slice(0, 80);
 
+  const handleRemove = () => {
+    Alert.alert("Remove bookmark?", "", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: onRemove },
+    ]);
+  };
+
   return (
-    <View style={{ marginBottom: 16 }}>
-    <Pressable
-      onPress={onPress}
-      onLongPress={() => {
-        Alert.alert("Remove bookmark?", "", [
-          { text: "Cancel", style: "cancel" },
-          { text: "Remove", style: "destructive", onPress: onRemove },
-        ]);
-      }}
+    <SwipeableRow
+      onAction={handleRemove}
+      actionLabel="Remove"
+      actionColor="rgba(180,120,68,0.85)"
+      actionIcon={<BookMarked size={18} color="white" />}
     >
+    <Pressable onPress={onPress}>
       <View
         style={{
           backgroundColor: "white",
@@ -333,7 +466,7 @@ const SavedRow = ({
       )}
       </View>
     </Pressable>
-    </View>
+    </SwipeableRow>
   );
 };
 
@@ -667,26 +800,29 @@ export default function JournalScreen({
       {activeTab === "entries" && (
         <Pressable
           onPress={() => navigation.navigate("JournalEntryScreen", {})}
-          style={({ pressed }) => ({
+          style={{
             position: "absolute",
             bottom: 24,
             right: 24,
-            width: 56,
-            height: 56,
-            borderRadius: 18,
-            backgroundColor: Colors.sage,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 8,
-            elevation: 6,
-            opacity: pressed ? 0.85 : 1,
-            transform: [{ scale: pressed ? 0.95 : 1 }],
-          })}
+          }}
         >
-          <Plus size={24} color="white" />
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: Colors.sage,
+              alignItems: "center",
+              justifyContent: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 8,
+              elevation: 6,
+            }}
+          >
+            <Plus size={24} color="white" />
+          </View>
         </Pressable>
       )}
     </SafeAreaView>

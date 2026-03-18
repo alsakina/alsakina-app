@@ -169,7 +169,7 @@ const ProgressRing = ({
           height: size,
           borderRadius: size / 2,
           borderWidth: strokeWidth,
-          borderColor: "rgba(135,169,107,0.1)",
+          borderColor: "rgba(135,169,107,0.08)",
         }}
       />
       {/* We'll use a simple View-based approach since SVG isn't available */}

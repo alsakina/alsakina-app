@@ -1,5 +1,13 @@
 // screens/JournalEntryScreen.tsx
-import React, { useState, useEffect } from "react";
+// ─────────────────────────────────────────────────
+// Journal / diary entry screen.
+// - Write freely or pick an AI-generated prompt
+// - Prompts appear as a guiding question above your writing
+// - Mood selector to track how you're feeling
+// - Encrypted before saving to Supabase
+// ─────────────────────────────────────────────────
+
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,7 +20,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChevronLeft, Check, Sparkles } from "lucide-react-native";
+import { ChevronLeft, Check, Sparkles, X } from "lucide-react-native";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
@@ -42,14 +50,18 @@ export default function JournalEntryScreen({
   const { isPremium } = usePremium();
   const entryId = route.params?.entryId;
   const isEditing = !!entryId;
+  const bodyInputRef = useRef<TextInput>(null);
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
+
+  // AI prompts (premium only, new entries only)
   const [prompts, setPrompts] = useState<JournalPrompt[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [activePrompt, setActivePrompt] = useState<string | null>(null);
 
   useEffect(() => {
     if (isEditing) loadEntry();
@@ -60,7 +72,6 @@ export default function JournalEntryScreen({
     if (!user) return;
     setLoadingPrompts(true);
     try {
-      // Get recent entries for context
       const { data: recent } = await supabase
         .from("journal_entries")
         .select("body, mood, created_at")
@@ -68,7 +79,6 @@ export default function JournalEntryScreen({
         .order("created_at", { ascending: false })
         .limit(5);
 
-      // Decrypt them
       let decrypted: any[] = [];
       if (recent && recent.length > 0) {
         decrypted = await Promise.all(
@@ -100,7 +110,6 @@ export default function JournalEntryScreen({
         .single();
 
       if (data) {
-        // Decrypt sensitive fields
         const decrypted = await decryptJournalEntry(data);
         setTitle(decrypted.title || "");
         setBody(decrypted.body || "");
@@ -113,19 +122,43 @@ export default function JournalEntryScreen({
     }
   };
 
+  const handleSelectPrompt = (prompt: JournalPrompt) => {
+    setActivePrompt(prompt.prompt);
+    setPrompts([]); // hide prompt cards
+    // Focus the body input so user can start writing
+    setTimeout(() => bodyInputRef.current?.focus(), 200);
+  };
+
+  const handleDismissPrompt = () => {
+    setActivePrompt(null);
+  };
+
   const handleSave = async () => {
     if (!body.trim()) {
-      Alert.alert("Empty reflection", "Write something before saving.");
+      Alert.alert("Empty entry", "Write something before saving.");
       return;
     }
     if (!user) return;
 
     setSaving(true);
     try {
-      let saveTitle: string | null = title.trim() || null;
-      let saveBody: string = body.trim();
+      // Build the full entry text
+      // If a prompt was used, prepend it so it's saved with context
+      let saveBody = body.trim();
+      let saveTitle = title.trim() || null;
 
-      // Try to encrypt, fall back to plaintext if it fails
+      // Auto-generate title from first line if not set
+      if (!saveTitle) {
+        const firstLine = saveBody.split("\n")[0].slice(0, 60);
+        saveTitle = firstLine + (firstLine.length >= 60 ? "…" : "");
+      }
+
+      // If there was an active prompt, include it in the saved body
+      if (activePrompt) {
+        saveBody = `Prompt: ${activePrompt}\n\n${saveBody}`;
+      }
+
+      // Encrypt
       try {
         const encrypted = await encryptJournalEntry({
           title: saveTitle,
@@ -196,48 +229,45 @@ export default function JournalEntryScreen({
         <Pressable
           onPress={() => navigation.goBack()}
           hitSlop={12}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: pressed ? 0.6 : 1,
-          })}
         >
-          <ChevronLeft size={22} color={Colors.sage} />
-          <Text style={{ color: Colors.sage, fontSize: 15, marginLeft: 2 }}>
-            Journal
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <ChevronLeft size={22} color={Colors.sage} />
+            <Text style={{ color: Colors.sage, fontSize: 15, marginLeft: 2 }}>
+              Journal
+            </Text>
+          </View>
         </Pressable>
 
-        <Pressable
-          onPress={handleSave}
-          disabled={saving}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: Colors.sage,
-            borderRadius: 10,
-            paddingVertical: 8,
-            paddingHorizontal: 14,
-            opacity: saving ? 0.6 : pressed ? 0.8 : 1,
-          })}
-        >
-          {saving ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <>
-              <Check size={16} color="white" />
-              <Text
-                style={{
-                  color: "white",
-                  fontSize: 14,
-                  fontWeight: "600",
-                  marginLeft: 4,
-                }}
-              >
-                Save
-              </Text>
-            </>
-          )}
+        <Pressable onPress={handleSave} disabled={saving}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: Colors.sage,
+              borderRadius: 10,
+              paddingVertical: 8,
+              paddingHorizontal: 14,
+              opacity: saving ? 0.6 : 1,
+            }}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Check size={16} color="white" />
+                <Text
+                  style={{
+                    color: "white",
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginLeft: 4,
+                  }}
+                >
+                  Save
+                </Text>
+              </>
+            )}
+          </View>
         </Pressable>
       </View>
 
@@ -259,7 +289,7 @@ export default function JournalEntryScreen({
             style={{
               fontSize: 12,
               color: Colors.charcoalMuted,
-              marginBottom: 16,
+              marginBottom: 12,
             }}
           >
             {new Date().toLocaleDateString("en-US", {
@@ -269,22 +299,6 @@ export default function JournalEntryScreen({
               year: "numeric",
             })}
           </Text>
-
-          {/* Title */}
-          <TextInput
-            placeholder="Title (optional)"
-            placeholderTextColor={Colors.charcoalMuted}
-            value={title}
-            onChangeText={setTitle}
-            style={{
-              fontSize: 22,
-              fontWeight: "700",
-              color: Colors.charcoal,
-              fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-              marginBottom: 16,
-              paddingVertical: 4,
-            }}
-          />
 
           {/* Mood selector */}
           <Text
@@ -302,7 +316,7 @@ export default function JournalEntryScreen({
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 20 }}
+            style={{ marginBottom: 16 }}
             contentContainerStyle={{ gap: 8 }}
           >
             {MOODS.map((m) => (
@@ -314,14 +328,10 @@ export default function JournalEntryScreen({
                   paddingHorizontal: 14,
                   borderRadius: 20,
                   backgroundColor:
-                    mood === m
-                      ? "rgba(135,169,107,0.2)"
-                      : "white",
+                    mood === m ? "rgba(135,169,107,0.2)" : "white",
                   borderWidth: 1,
                   borderColor:
-                    mood === m
-                      ? Colors.sage
-                      : "rgba(135,169,107,0.1)",
+                    mood === m ? Colors.sage : "rgba(135,169,107,0.1)",
                 }}
               >
                 <Text
@@ -337,101 +347,183 @@ export default function JournalEntryScreen({
             ))}
           </ScrollView>
 
-          {/* AI Prompts (premium, new entries only) */}
-          {!isEditing && isPremium && (prompts.length > 0 || loadingPrompts) && (
-            <View style={{ marginBottom: 16 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 10,
-                }}
-              >
-                <Sparkles size={14} color={Colors.sage} />
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "700",
-                    color: Colors.sage,
-                    letterSpacing: 1,
-                    textTransform: "uppercase",
-                    marginLeft: 6,
-                  }}
-                >
-                  Suggested Prompts
-                </Text>
-              </View>
-              {loadingPrompts ? (
+          {/* AI Prompt cards (premium, new entries only) */}
+          {!isEditing &&
+            !activePrompt &&
+            isPremium &&
+            (prompts.length > 0 || loadingPrompts) && (
+              <View style={{ marginBottom: 16 }}>
                 <View
                   style={{
-                    backgroundColor: "white",
-                    borderRadius: 14,
-                    padding: 16,
+                    flexDirection: "row",
                     alignItems: "center",
-                    borderWidth: 1,
-                    borderColor: "rgba(135,169,107,0.08)",
+                    marginBottom: 10,
                   }}
                 >
-                  <ActivityIndicator size="small" color={Colors.sage} />
+                  <Sparkles size={14} color={Colors.sage} />
                   <Text
                     style={{
                       fontSize: 12,
-                      color: Colors.charcoalMuted,
-                      marginTop: 8,
+                      fontWeight: "700",
+                      color: Colors.sage,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      marginLeft: 6,
+                    }}
+                  >
+                    Writing Prompts
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: Colors.charcoalMuted,
+                    fontStyle: "italic",
+                    marginBottom: 10,
+                    lineHeight: 18,
+                  }}
+                >
+                  Tap a prompt for inspiration, or skip and write freely below.
+                </Text>
+
+                {loadingPrompts ? (
+                  <View
+                    style={{
+                      backgroundColor: "white",
+                      borderRadius: 14,
+                      padding: 16,
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: "rgba(135,169,107,0.08)",
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={Colors.sage} />
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: Colors.charcoalMuted,
+                        marginTop: 8,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Preparing prompts for you…
+                    </Text>
+                  </View>
+                ) : (
+                  prompts.map((p, i) => (
+                    <Pressable
+                      key={i}
+                      onPress={() => handleSelectPrompt(p)}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: "white",
+                          borderRadius: 14,
+                          padding: 14,
+                          marginBottom: 8,
+                          borderWidth: 1,
+                          borderColor: "rgba(135,169,107,0.1)",
+                          borderLeftWidth: 3,
+                          borderLeftColor: Colors.sage,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: Colors.charcoal,
+                            fontFamily:
+                              Platform.OS === "ios" ? "Georgia" : "serif",
+                            lineHeight: 20,
+                          }}
+                        >
+                          {p.prompt}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: Colors.charcoalMuted,
+                            fontStyle: "italic",
+                            marginTop: 6,
+                          }}
+                        >
+                          {p.context}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            )}
+
+          {/* Active prompt (selected as guiding question) */}
+          {activePrompt && (
+            <View
+              style={{
+                backgroundColor: "rgba(135,169,107,0.06)",
+                borderRadius: 14,
+                padding: 14,
+                marginBottom: 12,
+                borderLeftWidth: 3,
+                borderLeftColor: Colors.sage,
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                }}
+              >
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color: Colors.sage,
+                      letterSpacing: 1,
+                      textTransform: "uppercase",
+                      marginBottom: 6,
+                    }}
+                  >
+                    Reflecting on
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: Colors.charcoal,
+                      fontFamily:
+                        Platform.OS === "ios" ? "Georgia" : "serif",
+                      lineHeight: 22,
                       fontStyle: "italic",
                     }}
                   >
-                    Preparing prompts for you…
+                    {activePrompt}
                   </Text>
                 </View>
-              ) : (
-                prompts.map((p, i) => (
-                  <Pressable
-                    key={i}
-                    onPress={() => {
-                      setBody(p.prompt + "\n\n");
-                      setPrompts([]); // hide after selection
-                    }}
-                  >
-                    <View
-                      style={{
-                        backgroundColor: "white",
-                        borderRadius: 14,
-                        padding: 14,
-                        marginBottom: 8,
-                        borderWidth: 1,
-                        borderColor: "rgba(135,169,107,0.1)",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: Colors.charcoal,
-                          fontFamily:
-                            Platform.OS === "ios" ? "Georgia" : "serif",
-                          lineHeight: 20,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {p.prompt}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          color: Colors.charcoalMuted,
-                          fontStyle: "italic",
-                        }}
-                      >
-                        {p.context}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))
-              )}
+                <Pressable onPress={handleDismissPrompt} hitSlop={8}>
+                  <X size={16} color={Colors.charcoalMuted} />
+                </Pressable>
+              </View>
             </View>
           )}
 
-          {/* Body */}
+          {/* Title (optional) */}
+          <TextInput
+            placeholder="Title (optional)"
+            placeholderTextColor={Colors.charcoalMuted}
+            value={title}
+            onChangeText={setTitle}
+            style={{
+              fontSize: 20,
+              fontWeight: "700",
+              color: Colors.charcoal,
+              fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+              marginBottom: 12,
+              paddingVertical: 4,
+            }}
+          />
+
+          {/* Writing area */}
           <View
             style={{
               backgroundColor: "white",
@@ -439,11 +531,16 @@ export default function JournalEntryScreen({
               padding: 18,
               borderWidth: 1,
               borderColor: "rgba(135,169,107,0.08)",
-              minHeight: 240,
+              minHeight: 280,
             }}
           >
             <TextInput
-              placeholder="What's on your heart today..."
+              ref={bodyInputRef}
+              placeholder={
+                activePrompt
+                  ? "Write your thoughts here…"
+                  : "What's on your heart today…"
+              }
               placeholderTextColor={Colors.charcoalMuted}
               value={body}
               onChangeText={setBody}
@@ -454,7 +551,7 @@ export default function JournalEntryScreen({
                 color: Colors.charcoal,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 lineHeight: 26,
-                minHeight: 200,
+                minHeight: 240,
               }}
             />
           </View>
