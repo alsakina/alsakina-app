@@ -10,7 +10,7 @@ import {
   Vibration,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { RotateCcw, ChevronDown, ChevronUp } from "lucide-react-native";
+import { RotateCcw, ChevronDown, ChevronUp, History } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
@@ -26,6 +26,40 @@ function getTodayLocal(): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+function getDateLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getRecentDates(count: number): string[] {
+  const dates: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    dates.push(getDateLocal(d));
+  }
+  return dates;
+}
+
+interface DayHistory {
+  date: string;
+  total: number;
+  breakdown: { key: string; transliteration: string; count: number }[];
+}
+
+/* ── Transliteration lookup ────────────────────── */
+
+const DHIKR_LABELS: Record<string, string> = {
+  subhanallah: "SubhanAllah",
+  alhamdulillah: "Alhamdulillah",
+  allahuakbar: "Allahu Akbar",
+  lailahaillallah: "La ilaha illallah",
+  astaghfirullah: "Astaghfirullah",
+  salawat: "Salawat",
+};
 
 /* ── Built-in dhikr options ────────────────────── */
 
@@ -230,6 +264,9 @@ export default function DhikrScreen() {
   const [count, setCount] = useState(0);
   const [todayTotal, setTodayTotal] = useState(0);
   const [showSelector, setShowSelector] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState<DayHistory[]>([]);
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const headerFade = useRef(new Animated.Value(0)).current;
 
@@ -247,7 +284,10 @@ export default function DhikrScreen() {
   // Load today's count for the selected dhikr
   useFocusEffect(
     useCallback(() => {
-      if (user) loadTodayCount();
+      if (user) {
+        loadTodayCount();
+        loadHistory();
+      }
     }, [user, selected.key])
   );
 
@@ -283,6 +323,57 @@ export default function DhikrScreen() {
       setTodayTotal(total);
     } catch {
       setCount(0);
+    }
+  };
+
+  const loadHistory = async () => {
+    if (!user) return;
+    try {
+      const dates = getRecentDates(7);
+      const oldest = dates[dates.length - 1];
+
+      const { data } = await supabase
+        .from("dhikr_logs")
+        .select("dhikr_key, count, date")
+        .eq("user_id", user.id)
+        .gte("date", oldest)
+        .order("date", { ascending: false });
+
+      if (!data) {
+        setHistory([]);
+        return;
+      }
+
+      // Group by date
+      const dayMap: Record<
+        string,
+        { key: string; count: number }[]
+      > = {};
+      for (const row of data) {
+        if (!dayMap[row.date]) dayMap[row.date] = [];
+        dayMap[row.date].push({
+          key: row.dhikr_key,
+          count: row.count,
+        });
+      }
+
+      const days: DayHistory[] = dates.map((dateStr) => {
+        const entries = dayMap[dateStr] || [];
+        const total = entries.reduce((sum, e) => sum + e.count, 0);
+        const breakdown = entries
+          .filter((e) => e.count > 0)
+          .map((e) => ({
+            key: e.key,
+            transliteration: DHIKR_LABELS[e.key] || e.key,
+            count: e.count,
+          }))
+          .sort((a, b) => b.count - a.count);
+        return { date: dateStr, total, breakdown };
+      });
+
+      setHistory(days);
+    } catch (err) {
+      console.warn("History load error:", err);
     }
   };
 
@@ -581,6 +672,274 @@ export default function DhikrScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {/* ── History ──────────────────────────── */}
+        {user && (
+          <View style={{ marginTop: 28, paddingHorizontal: 4 }}>
+            {/* Divider + toggle */}
+            <Pressable
+              onPress={() => setShowHistory(!showHistory)}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                  gap: 8,
+                }}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    backgroundColor: "rgba(135,169,107,0.12)",
+                  }}
+                />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <History size={14} color={Colors.charcoalMuted} />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "600",
+                      color: Colors.charcoalMuted,
+                      letterSpacing: 1.2,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Past 7 Days
+                  </Text>
+                  {showHistory ? (
+                    <ChevronUp size={14} color={Colors.charcoalMuted} />
+                  ) : (
+                    <ChevronDown size={14} color={Colors.charcoalMuted} />
+                  )}
+                </View>
+                <View
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    backgroundColor: "rgba(135,169,107,0.12)",
+                  }}
+                />
+              </View>
+            </Pressable>
+
+            {showHistory && (
+              <View>
+                {history.map((day) => {
+                  const dateObj = new Date(day.date + "T12:00:00");
+                  const isExpanded = expandedDay === day.date;
+                  const isCurrentDay = day.date === getTodayLocal();
+                  const dayLabel = isCurrentDay
+                    ? "Today"
+                    : dateObj.toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      });
+
+                  return (
+                    <View key={day.date} style={{ marginBottom: 8 }}>
+                      <Pressable
+                        onPress={() =>
+                          setExpandedDay(isExpanded ? null : day.date)
+                        }
+                      >
+                        <View
+                          style={{
+                            backgroundColor: "white",
+                            borderRadius: 14,
+                            padding: 14,
+                            borderWidth: 1,
+                            borderColor: isCurrentDay
+                              ? "rgba(135,169,107,0.2)"
+                              : "rgba(135,169,107,0.08)",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <View style={{ flexDirection: "row", alignItems: "center" }}>
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                fontWeight: isCurrentDay ? "700" : "600",
+                                color: isCurrentDay
+                                  ? Colors.sage
+                                  : Colors.charcoal,
+                              }}
+                            >
+                              {dayLabel}
+                            </Text>
+                          </View>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            {day.total > 0 ? (
+                              <View
+                                style={{
+                                  backgroundColor: "rgba(135,169,107,0.1)",
+                                  borderRadius: 8,
+                                  paddingVertical: 3,
+                                  paddingHorizontal: 10,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 14,
+                                    fontWeight: "700",
+                                    color: Colors.sage,
+                                  }}
+                                >
+                                  {day.total}
+                                </Text>
+                              </View>
+                            ) : (
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  color: Colors.charcoalMuted,
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                —
+                              </Text>
+                            )}
+                            {day.breakdown.length > 0 && (
+                              isExpanded ? (
+                                <ChevronUp
+                                  size={14}
+                                  color={Colors.charcoalMuted}
+                                />
+                              ) : (
+                                <ChevronDown
+                                  size={14}
+                                  color={Colors.charcoalMuted}
+                                />
+                              )
+                            )}
+                          </View>
+                        </View>
+                      </Pressable>
+
+                      {/* Expanded breakdown */}
+                      {isExpanded && day.breakdown.length > 0 && (
+                        <View
+                          style={{
+                            backgroundColor: "rgba(135,169,107,0.04)",
+                            borderRadius: 12,
+                            marginTop: 4,
+                            padding: 12,
+                            gap: 8,
+                          }}
+                        >
+                          {day.breakdown.map((item) => (
+                            <View
+                              key={item.key}
+                              style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  color: Colors.charcoal,
+                                }}
+                              >
+                                {item.transliteration}
+                              </Text>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 6,
+                                }}
+                              >
+                                {/* Mini progress bar */}
+                                <View
+                                  style={{
+                                    width: 60,
+                                    height: 4,
+                                    borderRadius: 2,
+                                    backgroundColor: "rgba(135,169,107,0.1)",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      width: `${Math.min(100, (item.count / (DHIKR_PRESETS.find((p) => p.key === item.key)?.target || 33)) * 100)}%`,
+                                      height: 4,
+                                      borderRadius: 2,
+                                      backgroundColor: Colors.sage,
+                                    }}
+                                  />
+                                </View>
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: "600",
+                                    color: Colors.sage,
+                                    minWidth: 28,
+                                    textAlign: "right",
+                                  }}
+                                >
+                                  {item.count}
+                                </Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Total for the week */}
+                {history.length > 0 && (
+                  <View
+                    style={{
+                      alignItems: "center",
+                      marginTop: 12,
+                      paddingTop: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: "rgba(135,169,107,0.1)",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: Colors.charcoalMuted,
+                      }}
+                    >
+                      Week total:{" "}
+                      <Text
+                        style={{
+                          fontWeight: "700",
+                          color: Colors.sage,
+                        }}
+                      >
+                        {history.reduce((sum, d) => sum + d.total, 0)}
+                      </Text>
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

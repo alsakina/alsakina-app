@@ -7,11 +7,24 @@ import {
   ScrollView,
   Animated,
   Platform,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BookOpen, BookMarked, Scroll, HandHeart } from "lucide-react-native";
+import {
+  BookOpen,
+  BookMarked,
+  Scroll,
+  HandHeart,
+  Search,
+  X,
+  Crown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Colors } from "../lib/theme";
+import { useAuth } from "../lib/AuthContext";
+import { usePremium } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import ScreenHeader from "../components/ScreenHeader";
 
@@ -93,6 +106,112 @@ const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+
+const CONTENT_LABELS: Record<string, string> = {
+  hadith: "Hadith",
+  verse: "Quranic Verse",
+  story: "Story",
+  dua: "Du'a",
+};
+
+const CONTENT_COLORS: Record<string, string> = {
+  hadith: "#7B8F6B",
+  verse: "#8B7355",
+  story: "#6B7F9B",
+  dua: "#9B7B8F",
+};
+
+interface SearchResult {
+  id: number;
+  date: string;
+  type: string;
+  content: any;
+}
+
+/* ── Search result card ────────────────────────── */
+
+const SearchResultCard = ({
+  result,
+  onPress,
+}: {
+  result: SearchResult;
+  onPress: () => void;
+}) => {
+  const color = CONTENT_COLORS[result.type] || Colors.sage;
+  const date = new Date(result.date + "T12:00:00");
+  const dateStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+
+  // Get preview based on type
+  const preview =
+    result.type === "hadith"
+      ? result.content.english?.slice(0, 100)
+      : result.type === "verse"
+      ? result.content.theme
+      : result.type === "story"
+      ? result.content.title
+      : result.content.translation?.slice(0, 100);
+
+  return (
+    <View style={{ marginBottom: 10 }}>
+      <Pressable onPress={onPress}>
+        <View
+          style={{
+            backgroundColor: "white",
+            borderRadius: 16,
+            padding: 14,
+            borderWidth: 1,
+            borderColor: "rgba(135,169,107,0.08)",
+            borderLeftWidth: 3,
+            borderLeftColor: color,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 6,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: `${color}15`,
+                borderRadius: 6,
+                paddingVertical: 2,
+                paddingHorizontal: 7,
+              }}
+            >
+              <Text style={{ fontSize: 10, fontWeight: "700", color }}>
+                {CONTENT_LABELS[result.type] || result.type}
+              </Text>
+            </View>
+            <Text
+              style={{ fontSize: 11, color: Colors.charcoalMuted }}
+            >
+              {dateStr}
+            </Text>
+          </View>
+          {preview && (
+            <Text
+              style={{
+                fontSize: 13,
+                color: Colors.charcoal,
+                lineHeight: 18,
+                fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+              }}
+              numberOfLines={2}
+            >
+              {preview}
+            </Text>
+          )}
+        </View>
+      </Pressable>
+    </View>
+  );
+};
 
 /* ── Diamond accent ────────────────────────────── */
 
@@ -329,12 +448,53 @@ export default function ExploreScreen({
   navigation: any;
 }) {
   const headerFade = useRef(new Animated.Value(0)).current;
-  const recentDates = getRecentDates(7);
+  const { user } = useAuth();
+  const { isPremium } = usePremium();
+
+  // Date state
+  const recentDates = getRecentDates(isPremium ? 30 : 7);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [cachedDays, setCachedDays] = useState<Record<string, Set<string>>>({});
+  const [archivePage, setArchivePage] = useState(0); // for premium pagination
+  const DATES_PER_PAGE = 7;
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const searchInputRef = useRef<TextInput>(null);
 
   const selectedDateStr = getDateString(selectedDate);
   const isPast = !isToday(selectedDate);
+
+  // Paginated dates for archive display
+  // Build weeks as Sunday–Saturday
+  function getWeekDates(pageOffset: number): Date[] {
+    const today = new Date();
+    // Find this week's Sunday
+    const sunday = new Date(today);
+    sunday.setDate(today.getDate() - today.getDay()); // getDay() 0=Sun
+
+    // Go back by pageOffset weeks
+    const weekStart = new Date(sunday);
+    weekStart.setDate(sunday.getDate() - pageOffset * 7);
+
+    const dates: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
+      // Don't show future dates
+      if (d <= today) {
+        dates.push(d);
+      }
+    }
+    return dates;
+  }
+
+  const maxPages = isPremium ? 5 : 1; // premium: 5 weeks back, free: current week only
+  const visibleDates = getWeekDates(archivePage);
+  const totalPages = maxPages;
 
   useFocusEffect(
     useCallback(() => {
@@ -344,15 +504,18 @@ export default function ExploreScreen({
 
   const checkCachedDates = async () => {
     try {
-      // Get the oldest date in our range
-      const oldest = getDateString(recentDates[recentDates.length - 1]);
-      const newest = getDateString(recentDates[0]);
+      // Cover the full range of dates we might show
+      const today = new Date();
+      const oldest = new Date(today);
+      oldest.setDate(today.getDate() - (maxPages * 7 + 7)); // extra week buffer
+      const oldestStr = getDateString(oldest);
+      const newestStr = getDateString(today);
 
       const { data, error } = await supabase
         .from("daily_content")
         .select("date, type")
-        .gte("date", oldest)
-        .lte("date", newest);
+        .gte("date", oldestStr)
+        .lte("date", newestStr);
 
       if (error) throw error;
 
@@ -392,6 +555,62 @@ export default function ExploreScreen({
     type: DailyContentType
   ): boolean => {
     return !!cachedDays[dateStr]?.has(type);
+  };
+
+  const handleSearch = async () => {
+    const q = searchQuery.trim();
+    if (!q) return;
+
+    setSearching(true);
+    setHasSearched(true);
+
+    try {
+      // Fetch recent content and filter locally
+      // This is efficient since daily_content is small (~4 rows/day)
+      const { data } = await supabase
+        .from("daily_content")
+        .select("id, date, type, content")
+        .order("date", { ascending: false })
+        .limit(400); // ~100 days of content
+
+      if (!data) {
+        setSearchResults([]);
+        return;
+      }
+
+      const lowerQ = q.toLowerCase();
+      const matches = data.filter((row) => {
+        const contentStr = JSON.stringify(row.content).toLowerCase();
+        return contentStr.includes(lowerQ);
+      });
+
+      // Free: 3 results, premium: all
+      const limited = isPremium ? matches : matches.slice(0, 3);
+      setSearchResults(limited);
+    } catch (err) {
+      console.warn("Search error:", err);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSearchResultPress = (result: SearchResult) => {
+    const root =
+      navigation.getParent()?.getParent?.() ||
+      navigation.getParent() ||
+      navigation;
+    root.navigate("DailyContentScreen", {
+      type: result.type,
+      date: result.date,
+    });
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setHasSearched(false);
+    searchInputRef.current?.blur();
   };
 
   return (
@@ -489,21 +708,21 @@ export default function ExploreScreen({
           </Text>
         </Animated.View>
 
-        {/* ── Past Reflections ─────────────────── */}
+        {/* ── Search ─────────────────────────────── */}
         <Animated.View
           style={{
             opacity: headerFade,
-            marginTop: 32,
+            marginTop: 28,
             paddingHorizontal: 20,
           }}
         >
-          {/* Thin divider */}
+          {/* Divider */}
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
-              marginBottom: 20,
+              marginBottom: 16,
               gap: 8,
             }}
           >
@@ -523,7 +742,7 @@ export default function ExploreScreen({
                 textTransform: "uppercase",
               }}
             >
-              Past Reflections
+              Search
             </Text>
             <View
               style={{
@@ -534,7 +753,217 @@ export default function ExploreScreen({
             />
           </View>
 
-          {/* Date pills — use a regular View with flexbox to spread evenly */}
+          {/* Search bar */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "white",
+              borderRadius: 14,
+              paddingHorizontal: 14,
+              paddingVertical: Platform.OS === "ios" ? 10 : 4,
+              borderWidth: 1,
+              borderColor: "rgba(135,169,107,0.1)",
+              marginBottom: 12,
+            }}
+          >
+            <Search size={18} color={Colors.charcoalMuted} />
+            <TextInput
+              ref={searchInputRef}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onSubmitEditing={handleSearch}
+              placeholder="Search hadith, verses, stories, du'as…"
+              placeholderTextColor={Colors.charcoalMuted}
+              returnKeyType="search"
+              autoCorrect={false}
+              style={{
+                flex: 1,
+                marginLeft: 10,
+                fontSize: 15,
+                color: Colors.charcoal,
+                paddingVertical: 4,
+              }}
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={clearSearch} hitSlop={8}>
+                <X size={18} color={Colors.charcoalMuted} />
+              </Pressable>
+            )}
+          </View>
+
+          {/* Search results */}
+          {searching && (
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 13,
+                color: Colors.charcoalMuted,
+                fontStyle: "italic",
+                marginVertical: 12,
+              }}
+            >
+              Searching…
+            </Text>
+          )}
+
+          {hasSearched && !searching && searchResults.length === 0 && (
+            <Text
+              style={{
+                textAlign: "center",
+                fontSize: 13,
+                color: Colors.charcoalMuted,
+                fontStyle: "italic",
+                marginVertical: 12,
+              }}
+            >
+              No results found for "{searchQuery}"
+            </Text>
+          )}
+
+          {searchResults.length > 0 && (
+            <View style={{ marginBottom: 8 }}>
+              {searchResults.map((result) => (
+                <SearchResultCard
+                  key={`${result.type}-${result.date}`}
+                  result={result}
+                  onPress={() => handleSearchResultPress(result)}
+                />
+              ))}
+
+              {/* Free user: show upgrade hint if results were limited */}
+              {!isPremium && hasSearched && searchResults.length === 3 && (
+                <Pressable
+                  onPress={() => {
+                    const root =
+                      navigation.getParent()?.getParent?.() ||
+                      navigation.getParent() ||
+                      navigation;
+                    root.navigate("Paywall");
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      paddingVertical: 12,
+                      backgroundColor: "rgba(135,169,107,0.06)",
+                      borderRadius: 12,
+                      marginTop: 4,
+                    }}
+                  >
+                    <Crown size={14} color={Colors.sage} />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: Colors.sage,
+                        fontWeight: "600",
+                        marginLeft: 6,
+                      }}
+                    >
+                      Upgrade to see all results
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            </View>
+          )}
+        </Animated.View>
+
+        {/* ── Past Reflections / Archive ────────── */}
+        <Animated.View
+          style={{
+            opacity: headerFade,
+            marginTop: 20,
+            paddingHorizontal: 20,
+          }}
+        >
+          {/* Divider */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 16,
+              gap: 8,
+            }}
+          >
+            <View
+              style={{
+                flex: 1,
+                height: 1,
+                backgroundColor: "rgba(135,169,107,0.12)",
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "600",
+                color: Colors.charcoalMuted,
+                letterSpacing: 1.2,
+                textTransform: "uppercase",
+              }}
+            >
+              {isPremium ? "Archive" : "Past Reflections"}
+            </Text>
+            <View
+              style={{
+                flex: 1,
+                height: 1,
+                backgroundColor: "rgba(135,169,107,0.12)",
+              }}
+            />
+          </View>
+
+          {/* Premium: page navigation */}
+          {isPremium && totalPages > 1 && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+                gap: 16,
+              }}
+            >
+              <Pressable
+                onPress={() =>
+                  setArchivePage(Math.min(totalPages - 1, archivePage + 1))
+                }
+                disabled={archivePage >= totalPages - 1}
+                style={{
+                  opacity: archivePage >= totalPages - 1 ? 0.3 : 1,
+                  padding: 4,
+                }}
+              >
+                <ChevronLeft size={20} color={Colors.sage} />
+              </Pressable>
+
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: Colors.charcoalMuted,
+                  fontWeight: "600",
+                }}
+              >
+                {/* Show date range for this page */}
+                {visibleDates.length > 0
+                  ? `${MONTH_NAMES[visibleDates[0].getMonth()]} ${visibleDates[0].getDate()} – ${MONTH_NAMES[visibleDates[visibleDates.length - 1].getMonth()]} ${visibleDates[visibleDates.length - 1].getDate()}`
+                  : ""}
+              </Text>
+
+              <Pressable
+                onPress={() => setArchivePage(Math.max(0, archivePage - 1))}
+                disabled={archivePage === 0}
+                style={{ opacity: archivePage === 0 ? 0.3 : 1, padding: 4 }}
+              >
+                <ChevronRight size={20} color={Colors.sage} />
+              </Pressable>
+            </View>
+          )}
+
+          {/* Date pills */}
           <View
             style={{
               flexDirection: "row",
@@ -543,7 +972,7 @@ export default function ExploreScreen({
               gap: 6,
             }}
           >
-            {[...recentDates].reverse().map((date) => {
+            {visibleDates.map((date) => {
               const dateStr = getDateString(date);
               return (
                 <DatePill
@@ -575,6 +1004,43 @@ export default function ExploreScreen({
                 ? "tap a tile to revisit"
                 : "no reflections saved"}
             </Text>
+          )}
+
+          {/* Free user: archive upgrade hint */}
+          {!isPremium && (
+            <Pressable
+              onPress={() => {
+                const root =
+                  navigation.getParent()?.getParent?.() ||
+                  navigation.getParent() ||
+                  navigation;
+                root.navigate("Paywall");
+              }}
+            >
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 16,
+                  paddingVertical: 10,
+                  backgroundColor: "rgba(135,169,107,0.06)",
+                  borderRadius: 12,
+                }}
+              >
+                <Crown size={14} color={Colors.sage} />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: Colors.sage,
+                    fontWeight: "600",
+                    marginLeft: 6,
+                  }}
+                >
+                  Unlock full archive with Premium
+                </Text>
+              </View>
+            </Pressable>
           )}
         </Animated.View>
       </ScrollView>

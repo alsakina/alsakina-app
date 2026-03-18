@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import { Send, RefreshCw, Sparkles, Bookmark } from "lucide-react-native";
+import { Send, RefreshCw, Sparkles, Bookmark, ChevronLeft } from "lucide-react-native";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
@@ -364,19 +364,19 @@ export default function HomeScreen() {
   const [saved, setSaved] = useState(false);
 
   const handleReflect = useCallback(async () => {
-    if (!input.trim()) return;
-
-    // If not signed in, prompt auth first
+    // If not signed in, prompt auth first (no text required)
     if (!user) {
       navigation.navigate("Auth");
       return;
     }
 
-    // If free user is out of reflections, show paywall
+    // If free user is out of reflections, show paywall (no text required)
     if (!canReflect) {
       navigation.navigate("Paywall");
       return;
     }
+
+    if (!input.trim()) return;
 
     Keyboard.dismiss();
     setLoading(true);
@@ -461,7 +461,20 @@ export default function HomeScreen() {
       style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
-      <ScreenHeader />
+      {guidance ? (
+        <ScreenHeader>
+          <Pressable onPress={handleReset} hitSlop={12}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <ChevronLeft size={22} color={Colors.sage} />
+              <Text style={{ color: Colors.sage, fontSize: 15, marginLeft: 2 }}>
+                New Reflection
+              </Text>
+            </View>
+          </Pressable>
+        </ScreenHeader>
+      ) : (
+        <ScreenHeader />
+      )}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

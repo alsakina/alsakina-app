@@ -14,7 +14,6 @@ import {
   Plus,
   BookMarked,
   NotebookPen,
-  Settings,
   Trash2,
   TrendingUp,
   Sparkles,
@@ -25,6 +24,7 @@ import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import { decryptJournalEntry } from "../lib/encryption";
+import ScreenHeader from "../components/ScreenHeader";
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -421,6 +421,7 @@ export default function JournalScreen({
         style={{ flex: 1, backgroundColor: Colors.cream }}
         edges={["top"]}
       >
+        <ScreenHeader />
         <View
           style={{
             flex: 1,
@@ -487,44 +488,27 @@ export default function JournalScreen({
       style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
+      <ScreenHeader />
+
       {/* Header */}
       <Animated.View
         style={{
           opacity: headerFade,
           paddingHorizontal: 20,
-          paddingTop: 24,
+          paddingTop: 4,
         }}
       >
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <View>
-            <DiamondAccent />
-            <Text
-              style={{
-                fontSize: 24,
-                color: Colors.charcoal,
-                fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-              }}
-            >
-              Your Journal
-            </Text>
-          </View>
-          <Pressable
-            onPress={() => {
-              const root = navigation.getParent()?.getParent?.() || navigation.getParent() || navigation;
-              root.navigate("SettingsScreen");
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <DiamondAccent />
+          <Text
+            style={{
+              fontSize: 24,
+              color: Colors.charcoal,
+              fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             }}
-            hitSlop={12}
-            style={{ padding: 4 }}
           >
-            <Settings size={20} color={Colors.charcoalMuted} />
-          </Pressable>
+            Your Journal
+          </Text>
         </View>
 
         <TabToggle active={activeTab} onSwitch={setActiveTab} />
