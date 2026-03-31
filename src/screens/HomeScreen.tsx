@@ -98,7 +98,7 @@ const NameCard = ({
           borderRadius: 24,
           padding: 24,
           borderWidth: 1,
-          borderColor: "rgba(135,169,107,0.1)",
+          borderColor: "rgba(135,169,107,0.08)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.04,
@@ -173,11 +173,13 @@ const GuidanceResult = ({
   onReset,
   onSave,
   saved,
+  userInput,
 }: {
   guidance: SpiritualGuidance;
   onReset: () => void;
   onSave: () => void;
   saved: boolean;
+  userInput: string;
 }) => {
   const headerFade = useRef(new Animated.Value(0)).current;
 
@@ -191,6 +193,48 @@ const GuidanceResult = ({
 
   return (
     <View style={{ paddingHorizontal: 4 }}>
+      {/* User's original prompt */}
+      <Animated.View
+        style={{
+          opacity: headerFade,
+          marginBottom: 24,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: "rgba(135,169,107,0.06)",
+            borderRadius: 16,
+            padding: 16,
+            borderLeftWidth: 3,
+            borderLeftColor: "rgba(135,169,107,0.3)",
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: "700",
+              color: Colors.sage,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Your reflection
+          </Text>
+          <Text
+            style={{
+              fontSize: 15,
+              color: Colors.charcoal,
+              fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+              lineHeight: 24,
+              fontStyle: "italic",
+            }}
+          >
+            "{userInput}"
+          </Text>
+        </View>
+      </Animated.View>
+
       {/* Section header */}
       <Animated.View style={{ opacity: headerFade, marginBottom: 20 }}>
         <DiamondAccent />
@@ -225,7 +269,7 @@ const GuidanceResult = ({
         >
           <View
             style={{
-              backgroundColor: "rgba(255,255,255,0.6)",
+              backgroundColor: "white",
               borderRadius: 16,
               padding: 20,
               borderWidth: 1,
@@ -497,6 +541,7 @@ export default function HomeScreen() {
               onReset={handleReset}
               onSave={handleSaveToJournal}
               saved={saved}
+              userInput={input}
             />
           ) : (
             <>
@@ -536,7 +581,7 @@ export default function HomeScreen() {
                   borderRadius: 24,
                   padding: 20,
                   borderWidth: 1,
-                  borderColor: "rgba(135,169,107,0.1)",
+                  borderColor: "rgba(135,169,107,0.08)",
                   minHeight: 120,
                 }}
               >
