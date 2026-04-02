@@ -19,12 +19,13 @@ import {
   HandHeart,
   BarChart3,
   RefreshCw,
+  Bookmark,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
-import { decryptJournalEntry } from "../lib/encryption";
+import { decryptJournalEntry, encryptJournalEntry } from "../lib/encryption";
 import { fetchWeeklyInsights, WeeklyInsight } from "../lib/intelligence";
 
 /* ── Section ───────────────────────────────────── */
@@ -139,6 +140,7 @@ export default function WeeklyInsightsScreen({
   const [error, setError] = useState<string | null>(null);
   const [entryCount, setEntryCount] = useState(0);
   const [fromCache, setFromCache] = useState(false);
+  const [savedToJournal, setSavedToJournal] = useState(false);
   const headerFade = useRef(new Animated.Value(0)).current;
 
   // Cache key based on the current week (resets every Monday)
@@ -193,6 +195,7 @@ export default function WeeklyInsightsScreen({
     setLoading(true);
     setError(null);
     setFromCache(false);
+    setSavedToJournal(false);
 
     try {
       // Get entries from the past 7 days
@@ -259,6 +262,44 @@ export default function WeeklyInsightsScreen({
     month: "short",
     day: "numeric",
   })}`;
+
+  const handleSaveToJournal = async () => {
+    if (!user || !insight || savedToJournal) return;
+
+    try {
+      const title = `Weekly Insights: ${dateRange}`;
+      const body = [
+        `📊 YOUR WEEK\n${insight.summary}`,
+        `💜 MOOD & PATTERNS\n${insight.moodPattern}`,
+        `📈 GROWTH\n${insight.growth}`,
+        `📖 A VERSE FOR YOUR WEEK\n${insight.quranicReflection}\n— ${insight.quranicReference}`,
+        `💡 FOR THE COMING WEEK\n${insight.suggestion}`,
+        `🤲 A DU'A FOR YOU\n${insight.duaForWeek}`,
+      ].join("\n\n");
+
+      let saveTitle = title;
+      let saveBody = body;
+      try {
+        const encrypted = await encryptJournalEntry({ title, body });
+        saveTitle = encrypted.title || title;
+        saveBody = encrypted.body;
+      } catch {
+        // Fallback to plaintext
+      }
+
+      const { error: dbError } = await supabase.from("journal_entries").insert({
+        user_id: user.id,
+        title: saveTitle,
+        body: saveBody,
+        mood: null,
+      });
+
+      if (dbError) throw dbError;
+      setSavedToJournal(true);
+    } catch (err) {
+      console.warn("Save insight error:", err);
+    }
+  };
 
   return (
     <SafeAreaView
@@ -535,7 +576,7 @@ export default function WeeklyInsightsScreen({
               delay={700}
             />
 
-            {/* Regenerate / cache info */}
+            {/* Save + Regenerate */}
             <View
               style={{
                 alignItems: "center",
@@ -543,6 +584,7 @@ export default function WeeklyInsightsScreen({
                 paddingTop: 20,
                 borderTopWidth: 1,
                 borderTopColor: "rgba(135,169,107,0.1)",
+                gap: 12,
               }}
             >
               {fromCache && (
@@ -551,12 +593,47 @@ export default function WeeklyInsightsScreen({
                     fontSize: 12,
                     color: Colors.charcoalMuted,
                     fontStyle: "italic",
-                    marginBottom: 12,
                   }}
                 >
                   Generated earlier this week
                 </Text>
               )}
+
+              {/* Save to journal */}
+              <Pressable onPress={handleSaveToJournal}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 12,
+                    paddingHorizontal: 24,
+                    borderRadius: 12,
+                    backgroundColor: savedToJournal
+                      ? "rgba(135,169,107,0.08)"
+                      : Colors.sage,
+                    borderWidth: savedToJournal ? 1.5 : 0,
+                    borderColor: Colors.sage,
+                  }}
+                >
+                  <Bookmark
+                    size={16}
+                    color={savedToJournal ? Colors.sage : "white"}
+                    fill={savedToJournal ? Colors.sage : "transparent"}
+                  />
+                  <Text
+                    style={{
+                      color: savedToJournal ? Colors.sage : "white",
+                      fontSize: 14,
+                      fontWeight: "600",
+                      marginLeft: 8,
+                    }}
+                  >
+                    {savedToJournal ? "Saved to Journal" : "Save to Journal"}
+                  </Text>
+                </View>
+              </Pressable>
+
+              {/* Regenerate */}
               <Pressable onPress={generateInsights}>
                 <View
                   style={{
