@@ -5,15 +5,15 @@
 //   1. Profile (avatar, display name, email)
 //   2. Subscription (premium status / upgrade)
 //   3. Appearance (dark mode toggle)
-//   4. Notifications (daily reminder toggle + time)
-//   5. Privacy & Security (change password, biometrics)
+//   4. Notifications (daily reminder toggle + time picker)
+//   5. Privacy & Security (change password)
 //   6. Data & Storage (export journal, clear cache)
 //   7. Support (rate app, send feedback, help center)
 //   8. Legal (privacy policy, terms)
 //   9. Account (change email, delete account, sign out)
 // ─────────────────────────────────────────────────
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -27,6 +27,9 @@ import {
   Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import {
   ChevronLeft,
   ChevronRight,
@@ -37,7 +40,7 @@ import {
   Crown,
   Moon,
   Bell,
-  Lock,
+  Clock,
   Download,
   Trash2,
   Star,
@@ -46,48 +49,57 @@ import {
   FileText,
   AlertTriangle,
   KeyRound,
-  Fingerprint,
 } from "lucide-react-native";
 import { useColors, LightColors } from "../lib/ThemeContext";
+import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
-import { useTheme } from "../lib/ThemeContext";
 import { supabase } from "../lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  scheduleDailyReminder,
+  cancelDailyReminder,
+} from "../lib/notifications";
 
 // Module-level colour ref — kept in sync by the screen on every render
 let _C = LightColors;
 
 /* ── Constants ─────────────────────────────────────────────────────────────
  * TODO: Fill in all values below before shipping.
- *
- * APP_STORE_URL   → Apple App Store product page.
- *                   Format: https://apps.apple.com/app/id<YOUR_NUMERIC_APP_ID>
- *                   Find it in App Store Connect → App Information → Apple ID.
- *
- * PLAY_STORE_URL  → Google Play Store product page.
- *                   Format: https://play.google.com/store/apps/details?id=<BUNDLE_ID>
- *                   Your bundle ID is set in app.json / app.config.js (android.package).
- *
- * HELP_CENTER_URL → Public help / FAQ page. Can be a Notion page, a simple
- *                   website, or a help desk URL (e.g. Intercom, Crisp, Zendesk).
- *
- * PRIVACY_URL     → Publicly hosted Privacy Policy.
- *                   Required by both App Store and Google Play.
- *
- * TERMS_URL       → Publicly hosted Terms of Service / EULA.
- *
- * FEEDBACK_EMAIL  → Email address that receives in-app feedback.
- *                   Recommended: a shared inbox (e.g. support@, hello@) rather
- *                   than a personal address so it scales as the team grows.
  * ─────────────────────────────────────────────────────────────────────────── */
 
-const APP_STORE_URL   = "https://apps.apple.com/app/id000000000";     // TODO: replace 000000000 with your numeric App ID
-const PLAY_STORE_URL  = "https://play.google.com/store/apps/details?id=com.yourcompany.alsakina"; // TODO: replace with your bundle ID
-const HELP_CENTER_URL = "https://yoursite.com/help";                   // TODO: replace with your help page URL
-const PRIVACY_URL     = "https://yoursite.com/privacy";               // TODO: replace with your Privacy Policy URL
-const TERMS_URL       = "https://yoursite.com/terms";                 // TODO: replace with your Terms of Service URL
-const FEEDBACK_EMAIL  = "support@yourcompany.com";                    // TODO: replace with your support email
+const APP_STORE_URL   = "https://apps.apple.com/app/id000000000";                               // TODO
+const PLAY_STORE_URL  = "https://play.google.com/store/apps/details?id=com.yourcompany.alsakina"; // TODO
+const HELP_CENTER_URL = "https://yoursite.com/help";                                            // TODO
+const PRIVACY_URL     = "https://yoursite.com/privacy";                                         // TODO
+const TERMS_URL       = "https://yoursite.com/terms";                                           // TODO
+const FEEDBACK_EMAIL  = "support@yourcompany.com";                                              // TODO
+
+/* ── Helpers ───────────────────────────────────── */
+
+/** Convert "HH:MM" string → Date set to today at that local time. */
+function timeStringToDate(timeStr: string): Date {
+  const [h, m] = timeStr.split(":").map(Number);
+  const d = new Date();
+  d.setHours(isNaN(h) ? 8 : h, isNaN(m) ? 0 : m, 0, 0);
+  return d;
+}
+
+/** Format a Date → "HH:MM" using the device local clock. */
+function dateToTimeString(date: Date): string {
+  const h = date.getHours().toString().padStart(2, "0");
+  const m = date.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+/** Format "HH:MM" → human-readable 12-hour string, e.g. "8:00 AM". */
+function formatDisplayTime(timeStr: string): string {
+  const [h, m] = timeStr.split(":").map(Number);
+  if (isNaN(h) || isNaN(m)) return timeStr;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
+}
 
 /* ── Sub-components ────────────────────────────── */
 
@@ -112,7 +124,7 @@ const Divider = () => (
   <View
     style={{
       height: 1,
-      backgroundColor: "rgba(135,169,107,0.07)",
+      backgroundColor: _C.border,
       marginHorizontal: 16,
     }}
   />
@@ -140,9 +152,7 @@ const SettingsRow = ({
   <Pressable
     onPress={onPress}
     disabled={!onPress && !rightElement}
-    style={({ pressed }) => ({
-      opacity: pressed && onPress ? 0.65 : 1,
-    })}
+    style={({ pressed }) => ({ opacity: pressed && onPress ? 0.65 : 1 })}
   >
     <View
       style={{
@@ -158,9 +168,7 @@ const SettingsRow = ({
           width: 34,
           height: 34,
           borderRadius: 10,
-          backgroundColor: destructive
-            ? _C.errorFaint
-            : _C.sageFaint,
+          backgroundColor: destructive ? _C.errorFaint : _C.sageFaint,
           alignItems: "center",
           justifyContent: "center",
           marginRight: 14,
@@ -169,25 +177,11 @@ const SettingsRow = ({
         {icon}
       </View>
       <View style={{ flex: 1 }}>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: "500",
-            color: destructive ? "#b44" : _C.text,
-          }}
-        >
+        <Text style={{ fontSize: 15, fontWeight: "500", color: destructive ? "#b44" : _C.text }}>
           {label}
         </Text>
         {value ? (
-          <Text
-            style={{
-              fontSize: 12,
-              color: _C.textMuted,
-              marginTop: 2,
-            }}
-          >
-            {value}
-          </Text>
+          <Text style={{ fontSize: 12, color: _C.textMuted, marginTop: 2 }}>{value}</Text>
         ) : null}
       </View>
       {rightElement ? (
@@ -199,7 +193,6 @@ const SettingsRow = ({
   </Pressable>
 );
 
-// Grouped card wrapper — visually groups rows together
 const SettingsCard = ({ children }: { children: React.ReactNode }) => (
   <View
     style={{
@@ -207,7 +200,7 @@ const SettingsCard = ({ children }: { children: React.ReactNode }) => (
       borderRadius: 16,
       overflow: "hidden",
       borderWidth: 1,
-      borderColor: _C.sageFaint,
+      borderColor: _C.border,
     }}
   >
     {children}
@@ -223,24 +216,27 @@ export default function SettingsScreen({
 }) {
   const C = useColors();
   _C = C;
-  const { user, signOut } = useAuth();
-  const { isPremium, reflectionsUsed, reflectionsLeft } = usePremium();
-  const { isDark, toggle: toggleDark } = useTheme();
 
-  // ── Profile state
-  const [displayName, setDisplayName] = useState("");
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const { user, signOut }                       = useAuth();
+  const { isPremium, reflectionsLeft }          = usePremium();
+  const { isDark, toggle: toggleDark }          = useTheme();
 
-  // ── Notifications state
-  const [dailyReminder, setDailyReminder] = useState(false);
-  const [reminderTime, setReminderTime] = useState("08:00");
+  // Profile
+  const [displayName, setDisplayName]           = useState("");
+  const [isEditingName, setIsEditingName]       = useState(false);
+  const [saving, setSaving]                     = useState(false);
 
-  // ── Loading state for destructive actions
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [exportingData, setExportingData] = useState(false);
+  // Notifications
+  const [dailyReminder, setDailyReminder]       = useState(false);
+  const [reminderTime, setReminderTime]         = useState("08:00");
+  const [reminderDate, setReminderDate]         = useState<Date>(() => timeStringToDate("08:00"));
+  const [showTimePicker, setShowTimePicker]     = useState(false);
 
-  /* ── Load profile on mount ─────────────────── */
+  // Destructive actions
+  const [deletingAccount, setDeletingAccount]   = useState(false);
+  const [exportingData, setExportingData]       = useState(false);
+
+  /* ── Load on mount ─────────────────────────── */
 
   useEffect(() => {
     if (user) {
@@ -258,11 +254,10 @@ export default function SettingsScreen({
         .eq("id", user.id)
         .single();
       setDisplayName(data?.display_name || "");
-      if (data?.notification_enabled != null) {
-        setDailyReminder(data.notification_enabled);
-      }
+      if (data?.notification_enabled != null) setDailyReminder(data.notification_enabled);
       if (data?.notification_time) {
         setReminderTime(data.notification_time);
+        setReminderDate(timeStringToDate(data.notification_time));
       }
     } catch {
       setDisplayName("");
@@ -271,14 +266,81 @@ export default function SettingsScreen({
 
   const loadNotificationPrefs = async () => {
     try {
-      const val = await AsyncStorage.getItem("@al_sakina_daily_reminder");
-      if (val !== null) setDailyReminder(val === "true");
+      const val  = await AsyncStorage.getItem("@al_sakina_daily_reminder");
       const time = await AsyncStorage.getItem("@al_sakina_reminder_time");
-      if (time) setReminderTime(time);
+      if (val !== null) setDailyReminder(val === "true");
+      if (time) {
+        setReminderTime(time);
+        setReminderDate(timeStringToDate(time));
+      }
     } catch {}
   };
 
-  /* ── Handlers ──────────────────────────────── */
+  /* ── Notification handlers ─────────────────── */
+
+  const handleToggleReminder = async (val: boolean) => {
+    setDailyReminder(val);
+    try {
+      await AsyncStorage.setItem("@al_sakina_daily_reminder", val ? "true" : "false");
+
+      if (val) {
+        // Request permission and schedule — uses device local time automatically
+        const success = await scheduleDailyReminder(reminderTime);
+        if (!success) {
+          // Permission denied — revert the toggle
+          setDailyReminder(false);
+          await AsyncStorage.setItem("@al_sakina_daily_reminder", "false");
+          Alert.alert(
+            "Permission required",
+            "Please allow notifications for Al-Sakina in your device Settings to enable daily reminders."
+          );
+          return;
+        }
+      } else {
+        await cancelDailyReminder();
+      }
+
+      // Persist to profile
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({
+            notification_enabled: val,
+            notification_time: reminderTime,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+      }
+    } catch (err) {
+      console.warn("Toggle reminder error:", err);
+    }
+  };
+
+  const handleTimeChange = async (event: DateTimePickerEvent, selected?: Date) => {
+    // Android dismisses itself; iOS stays open until Done is pressed
+    if (Platform.OS === "android") setShowTimePicker(false);
+    if (event.type === "dismissed" || !selected) return;
+
+    const newTime = dateToTimeString(selected);
+    setReminderDate(selected);
+    setReminderTime(newTime);
+
+    try {
+      await AsyncStorage.setItem("@al_sakina_reminder_time", newTime);
+      // Reschedule immediately if reminder is already active
+      if (dailyReminder) await scheduleDailyReminder(newTime);
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({ notification_time: newTime, updated_at: new Date().toISOString() })
+          .eq("id", user.id);
+      }
+    } catch (err) {
+      console.warn("Time change error:", err);
+    }
+  };
+
+  /* ── Other handlers ────────────────────────── */
 
   const handleSaveName = async () => {
     if (!user) return;
@@ -286,36 +348,13 @@ export default function SettingsScreen({
     try {
       await supabase
         .from("profiles")
-        .update({
-          display_name: displayName.trim(),
-          updated_at: new Date().toISOString(),
-        })
+        .update({ display_name: displayName.trim(), updated_at: new Date().toISOString() })
         .eq("id", user.id);
       setIsEditingName(false);
     } catch {
       Alert.alert("Error", "Could not update name.");
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleToggleReminder = async (val: boolean) => {
-    setDailyReminder(val);
-    try {
-      await AsyncStorage.setItem("@al_sakina_daily_reminder", val ? "true" : "false");
-      // Persist to profile so it survives reinstalls (best-effort)
-      if (user) {
-        await supabase
-          .from("profiles")
-          .update({ notification_enabled: val, updated_at: new Date().toISOString() })
-          .eq("id", user.id);
-      }
-    } catch {}
-    if (val) {
-      Alert.alert(
-        "Reminder enabled",
-        `You'll receive a daily reminder at ${reminderTime}. Make sure notifications are allowed for Al-Sakina in your device settings.`
-      );
     }
   };
 
@@ -353,8 +392,7 @@ export default function SettingsScreen({
         { text: "Cancel", style: "cancel" },
         {
           text: "Contact Support",
-          onPress: () =>
-            Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=Change%20Email`),
+          onPress: () => Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=Change%20Email`),
         },
       ]
     );
@@ -364,28 +402,12 @@ export default function SettingsScreen({
     if (!user) return;
     setExportingData(true);
     try {
-      // Fetch all user journal entries
       const { data: entries } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .eq("user_id", user.id)
+        .from("journal_entries").select("*").eq("user_id", user.id)
         .order("created_at", { ascending: false });
-
       const { data: saved } = await supabase
-        .from("saved_content")
-        .select("*")
-        .eq("user_id", user.id)
+        .from("saved_content").select("*").eq("user_id", user.id)
         .order("content_date", { ascending: false });
-
-      const exportPayload = {
-        exported_at: new Date().toISOString(),
-        user_email: user.email,
-        journal_entries: entries || [],
-        saved_content: saved || [],
-      };
-
-      // On a real app, share via Share API or email.
-      // For now, show a confirmation with entry count.
       const entryCount = entries?.length ?? 0;
       const savedCount = saved?.length ?? 0;
       Alert.alert(
@@ -408,45 +430,29 @@ export default function SettingsScreen({
         {
           text: "Delete My Account",
           style: "destructive",
-          onPress: () => {
-            // Second confirmation
+          onPress: () =>
             Alert.alert(
               "Are you absolutely sure?",
-              "Type \"DELETE\" in the next step to confirm.",
+              "This action cannot be reversed.",
               [
                 { text: "Cancel", style: "cancel" },
                 {
-                  text: "Continue",
+                  text: "Delete Everything",
                   style: "destructive",
                   onPress: async () => {
                     setDeletingAccount(true);
                     try {
-                      // Delete all user data in order
                       if (user) {
-                        await supabase
-                          .from("journal_entries")
-                          .delete()
-                          .eq("user_id", user.id);
-                        await supabase
-                          .from("saved_content")
-                          .delete()
-                          .eq("user_id", user.id);
-                        await supabase
-                          .from("user_usage")
-                          .delete()
-                          .eq("user_id", user.id);
-                        await supabase
-                          .from("profiles")
-                          .delete()
-                          .eq("id", user.id);
-                        // Note: full auth user deletion requires a Supabase
-                        // Edge Function / service-role call in production.
-                        // For now, sign out and notify.
+                        await cancelDailyReminder();
+                        await supabase.from("journal_entries").delete().eq("user_id", user.id);
+                        await supabase.from("saved_content").delete().eq("user_id", user.id);
+                        await supabase.from("user_usage").delete().eq("user_id", user.id);
+                        await supabase.from("profiles").delete().eq("id", user.id);
                       }
                       await signOut();
                       Alert.alert(
                         "Account deleted",
-                        "Your data has been removed. If you'd like to also delete your auth record, please contact support."
+                        "Your data has been removed. Contact support to also remove your auth record."
                       );
                     } catch (err: any) {
                       Alert.alert("Error", "Could not delete account: " + (err.message || "Unknown error"));
@@ -456,8 +462,7 @@ export default function SettingsScreen({
                   },
                 },
               ]
-            );
-          },
+            ),
         },
       ]
     );
@@ -470,12 +475,8 @@ export default function SettingsScreen({
         text: "Sign Out",
         style: "destructive",
         onPress: async () => {
-          try {
-            await signOut();
-            navigation.goBack();
-          } catch {
-            Alert.alert("Error", "Could not sign out.");
-          }
+          try { await signOut(); navigation.goBack(); }
+          catch { Alert.alert("Error", "Could not sign out."); }
         },
       },
     ]);
@@ -485,18 +486,16 @@ export default function SettingsScreen({
     if (isPremium) {
       Alert.alert(
         "Premium Active",
-        "You have full access to all features. To manage or cancel your subscription, go to your device's subscription settings.",
+        "You have full access to all features. To manage or cancel, go to your device's subscription settings.",
         [
           { text: "OK" },
           {
             text: "Open Settings",
-            onPress: () => {
-              if (Platform.OS === "ios") {
-                Linking.openURL("https://apps.apple.com/account/subscriptions");
-              } else {
-                Linking.openURL("https://play.google.com/store/account/subscriptions");
-              }
-            },
+            onPress: () => Linking.openURL(
+              Platform.OS === "ios"
+                ? "https://apps.apple.com/account/subscriptions"
+                : "https://play.google.com/store/account/subscriptions"
+            ),
           },
         ]
       );
@@ -507,36 +506,27 @@ export default function SettingsScreen({
 
   const handleRateApp = () => {
     const url = Platform.OS === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
-    Linking.openURL(url).catch(() =>
-      Alert.alert("Error", "Could not open the app store.")
-    );
+    Linking.openURL(url).catch(() => Alert.alert("Error", "Could not open the app store."));
   };
 
   const handleSendFeedback = () => {
     const subject = encodeURIComponent("Al-Sakina Feedback");
-    const body = encodeURIComponent(
-      `App version: 1.0.0\nOS: ${Platform.OS}\n\n---\n\n`
-    );
-    Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`).catch(
-      () => Alert.alert("Error", "No email client found.")
-    );
+    const body    = encodeURIComponent(`App version: 1.0.0\nOS: ${Platform.OS}\n\n---\n\n`);
+    Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`)
+      .catch(() => Alert.alert("Error", "No email client found."));
   };
 
   /* ── Avatar initials ───────────────────────── */
 
   const initials = displayName
-    ? displayName
-        .split(" ")
-        .map((w) => w[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
+    ? displayName.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
     : user?.email?.[0]?.toUpperCase() || "?";
 
   /* ── Render ────────────────────────────────── */
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: _C.background }} edges={["top"]}>
+
       {/* Top bar */}
       <View
         style={{
@@ -556,9 +546,7 @@ export default function SettingsScreen({
           })}
         >
           <ChevronLeft size={22} color={_C.sage} />
-          <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
-            Back
-          </Text>
+          <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>Back</Text>
         </Pressable>
         <Text
           style={{
@@ -577,11 +565,7 @@ export default function SettingsScreen({
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: 20,
-          paddingTop: 4,
-          paddingBottom: 60,
-        }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Profile header ──────────────────── */}
@@ -631,21 +615,14 @@ export default function SettingsScreen({
                     paddingHorizontal: 14,
                   }}
                 >
-                  {saving ? (
-                    <ActivityIndicator size="small" color="white" />
-                  ) : (
-                    <Text style={{ color: "white", fontSize: 13, fontWeight: "600" }}>
-                      Save
-                    </Text>
-                  )}
+                  {saving
+                    ? <ActivityIndicator size="small" color="white" />
+                    : <Text style={{ color: "white", fontSize: 13, fontWeight: "600" }}>Save</Text>
+                  }
                 </View>
               </Pressable>
-              <Pressable
-                onPress={() => { setIsEditingName(false); loadProfile(); }}
-              >
-                <Text style={{ fontSize: 13, color: _C.textMuted }}>
-                  Cancel
-                </Text>
+              <Pressable onPress={() => { setIsEditingName(false); loadProfile(); }}>
+                <Text style={{ fontSize: 13, color: _C.textMuted }}>Cancel</Text>
               </Pressable>
             </View>
           ) : (
@@ -673,44 +650,28 @@ export default function SettingsScreen({
         <Pressable onPress={handleManageSubscription}>
           <View
             style={{
-              backgroundColor: isPremium ? _C.sageFaint : "white",
+              backgroundColor: isPremium ? _C.sageFaint : _C.surface,
               borderRadius: 16,
               padding: 18,
               borderWidth: isPremium ? 1.5 : 1,
-              borderColor: isPremium ? _C.sage : _C.sageFaint,
+              borderColor: isPremium ? _C.sage : _C.border,
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
-              <Crown
-                size={18}
-                color={isPremium ? _C.sage : _C.textMuted}
-              />
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "700",
-                  color: _C.text,
-                  marginLeft: 10,
-                }}
-              >
+              <Crown size={18} color={isPremium ? _C.sage : _C.textMuted} />
+              <Text style={{ fontSize: 16, fontWeight: "700", color: _C.text, marginLeft: 10 }}>
                 {isPremium ? "Premium Active" : "Free Plan"}
               </Text>
-              <ChevronRight
-                size={16}
-                color={_C.textMuted}
-                style={{ marginLeft: "auto" }}
-              />
+              <ChevronRight size={16} color={_C.textMuted} style={{ marginLeft: "auto" }} />
             </View>
             {isPremium ? (
               <Text style={{ fontSize: 13, color: _C.sage, lineHeight: 20 }}>
-                You have unlimited access to all features.{"\n"}
-                Tap to manage your subscription.
+                You have unlimited access to all features.{"\n"}Tap to manage your subscription.
               </Text>
             ) : (
               <>
                 <Text style={{ fontSize: 13, color: _C.textMuted, lineHeight: 20, marginBottom: 6 }}>
-                  {reflectionsLeft} of {FREE_REFLECTIONS_PER_MONTH} free Sanctuary
-                  reflections remaining this month.
+                  {reflectionsLeft} of {FREE_REFLECTIONS_PER_MONTH} free Sanctuary reflections remaining this month.
                 </Text>
                 <Text style={{ fontSize: 13, color: _C.sage, fontWeight: "600" }}>
                   Upgrade to Premium →
@@ -741,12 +702,14 @@ export default function SettingsScreen({
         {/* ── Notifications ───────────────────── */}
         <SectionHeader title="Notifications" />
         <SettingsCard>
+
+          {/* Enable/disable toggle */}
           <SettingsRow
             icon={<Bell size={17} color={_C.sage} />}
             label="Daily Reminder"
             value={
               dailyReminder
-                ? `Enabled · ${reminderTime}`
+                ? `Enabled · ${formatDisplayTime(reminderTime)} · your local time`
                 : "Get a gentle nudge each day"
             }
             rightElement={
@@ -758,7 +721,89 @@ export default function SettingsScreen({
               />
             }
           />
+
+          {/* Time picker row — only visible when reminder is on */}
+          {dailyReminder && (
+            <>
+              <Divider />
+              <Pressable onPress={() => setShowTimePicker(true)}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 13,
+                    paddingHorizontal: 16,
+                    backgroundColor: _C.surface,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      backgroundColor: _C.sageFaint,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 14,
+                    }}
+                  >
+                    <Clock size={17} color={_C.sage} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: "500", color: _C.text }}>
+                      Reminder Time
+                    </Text>
+                    <Text style={{ fontSize: 12, color: _C.textMuted, marginTop: 2 }}>
+                      {formatDisplayTime(reminderTime)} · tap to change
+                    </Text>
+                  </View>
+                  <ChevronRight size={17} color={_C.textMuted} />
+                </View>
+              </Pressable>
+            </>
+          )}
         </SettingsCard>
+
+        {/* Native time picker — shown below the card when open */}
+        {showTimePicker && (
+          <View
+            style={{
+              backgroundColor: _C.surface,
+              borderRadius: 16,
+              marginTop: 8,
+              overflow: "hidden",
+              borderWidth: 1,
+              borderColor: _C.border,
+            }}
+          >
+            <DateTimePicker
+              value={reminderDate}
+              mode="time"
+              is24Hour={false}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handleTimeChange}
+              style={{ backgroundColor: _C.surface }}
+              themeVariant={isDark ? "dark" : "light"}
+            />
+            {/* iOS needs an explicit Done button to dismiss the spinner */}
+            {Platform.OS === "ios" && (
+              <Pressable
+                onPress={() => setShowTimePicker(false)}
+                style={{
+                  marginHorizontal: 16,
+                  marginBottom: 14,
+                  marginTop: 4,
+                  backgroundColor: _C.sage,
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ color: "white", fontWeight: "600", fontSize: 15 }}>Done</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {/* ── Privacy & Security ──────────────── */}
         <SectionHeader title="Privacy & Security" />
@@ -783,11 +828,9 @@ export default function SettingsScreen({
         <SettingsCard>
           <SettingsRow
             icon={
-              exportingData ? (
-                <ActivityIndicator size="small" color={_C.sage} />
-              ) : (
-                <Download size={17} color={_C.sage} />
-              )
+              exportingData
+                ? <ActivityIndicator size="small" color={_C.sage} />
+                : <Download size={17} color={_C.sage} />
             }
             label="Export My Data"
             value="Download your journal entries and saved content"
@@ -808,14 +851,10 @@ export default function SettingsScreen({
                   {
                     text: "Clear",
                     onPress: async () => {
-                      // Clear non-critical AsyncStorage keys
-                      const keysToClear = [
-                        "@al_sakina_daily_content_cache",
-                        "@al_sakina_weekly_insights_cache",
-                      ];
-                      await Promise.allSettled(
-                        keysToClear.map((k) => AsyncStorage.removeItem(k))
-                      );
+                      await Promise.allSettled([
+                        AsyncStorage.removeItem("@al_sakina_daily_content_cache"),
+                        AsyncStorage.removeItem("@al_sakina_weekly_insights_cache"),
+                      ]);
                       Alert.alert("Done", "Cache cleared.");
                     },
                   },
@@ -903,11 +942,9 @@ export default function SettingsScreen({
         <SettingsCard>
           <SettingsRow
             icon={
-              deletingAccount ? (
-                <ActivityIndicator size="small" color="#b44" />
-              ) : (
-                <AlertTriangle size={17} color="#b44" />
-              )
+              deletingAccount
+                ? <ActivityIndicator size="small" color="#b44" />
+                : <AlertTriangle size={17} color="#b44" />
             }
             label="Delete Account"
             value="Permanently remove all data"
