@@ -243,6 +243,7 @@ export default function SettingsScreen({
   // Destructive actions
   const [deletingAccount, setDeletingAccount]   = useState(false);
   const [exportingData, setExportingData]       = useState(false);
+  const [clearingCache, setClearingCache]         = useState(false);
 
   // Change password modal
   const [showPasswordModal, setShowPasswordModal]   = useState(false);
@@ -644,7 +645,73 @@ export default function SettingsScreen({
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleClearCache = async () => {
+    // First scan all keys so we can tell the user what will be cleared
+    let allKeys: readonly string[] = [];
+    try {
+      allKeys = await AsyncStorage.getAllKeys();
+    } catch {
+      allKeys = [];
+    }
+
+    // Categorise cacheable keys — preserve settings keys
+    const SETTINGS_KEYS = new Set([
+      "@al_sakina_dark_mode",
+      "@al_sakina_daily_reminder",
+      "@al_sakina_reminder_time",
+      "@al_sakina_notification_id",
+    ]);
+
+    const cacheKeys = allKeys.filter((k) => !SETTINGS_KEYS.has(k));
+    const weeklyKeys = cacheKeys.filter((k) => k.startsWith("@weekly_insight_"));
+    const nameKeys   = cacheKeys.filter((k) => k.startsWith("@name_detail_"));
+    const otherKeys  = cacheKeys.filter(
+      (k) => !k.startsWith("@weekly_insight_") && !k.startsWith("@name_detail_")
+    );
+
+    if (cacheKeys.length === 0) {
+      Alert.alert("Nothing to clear", "Your cache is already empty.");
+      return;
+    }
+
+    const lines: string[] = ["The following cached data will be removed:"];
+    if (weeklyKeys.length > 0)
+      lines.push(`• ${weeklyKeys.length} weekly insight${weeklyKeys.length !== 1 ? "s" : ""}`);
+    if (nameKeys.length > 0)
+      lines.push(`• ${nameKeys.length} regenerated Name explanation${nameKeys.length !== 1 ? "s" : ""}`);
+    if (otherKeys.length > 0)
+      lines.push(`• ${otherKeys.length} other cached item${otherKeys.length !== 1 ? "s" : ""}`);
+    lines.push("");
+    lines.push("Your journal entries, saved bookmarks, and settings are not affected.");
+
+    Alert.alert(
+      "Clear Cache",
+      lines.join("\n"),
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Clear",
+          style: "destructive",
+          onPress: async () => {
+            setClearingCache(true);
+            try {
+              await Promise.allSettled(cacheKeys.map((k) => AsyncStorage.removeItem(k)));
+              Alert.alert(
+                "Cache cleared",
+                `Removed ${cacheKeys.length} cached item${cacheKeys.length !== 1 ? "s" : ""}. Your settings and data are untouched.`
+              );
+            } catch (err: any) {
+              Alert.alert("Error", "Could not clear cache. Please try again.");
+            } finally {
+              setClearingCache(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+    const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
       "This will permanently delete your account and all data — journal entries, saved content, and your profile. This cannot be undone.",
@@ -1066,29 +1133,15 @@ export default function SettingsScreen({
           />
           <Divider />
           <SettingsRow
-            icon={<Trash2 size={17} color={_C.textMuted} />}
+            icon={
+              clearingCache
+                ? <ActivityIndicator size="small" color={_C.textMuted} />
+                : <Trash2 size={17} color={_C.textMuted} />
+            }
             label="Clear Cache"
             value="Free up local storage"
-            onPress={() => {
-              Alert.alert(
-                "Clear Cache",
-                "This will remove locally cached content. Your journal entries and data in the cloud are safe.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Clear",
-                    onPress: async () => {
-                      await Promise.allSettled([
-                        AsyncStorage.removeItem("@al_sakina_daily_content_cache"),
-                        AsyncStorage.removeItem("@al_sakina_weekly_insights_cache"),
-                      ]);
-                      Alert.alert("Done", "Cache cleared.");
-                    },
-                  },
-                ]
-              );
-            }}
-            showArrow
+            onPress={clearingCache ? undefined : handleClearCache}
+            showArrow={!clearingCache}
           />
         </SettingsCard>
 
