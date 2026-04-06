@@ -13,6 +13,7 @@ import DailyContentScreen from "../screens/DailyContentScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import WeeklyInsightsScreen from "../screens/WeeklyInsightsScreen";
 import LegalDocumentScreen from "../screens/LegalDocumentScreen";
+import HelpCenterScreen from "../screens/HelpCenterScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -45,6 +46,10 @@ export default function RootNavigator() {
       <Stack.Screen
         name="LegalDocumentScreen"
         component={LegalDocumentScreen} 
+      />
+      <Stack.Screen
+        name="HelpCenterScreen"
+        component={HelpCenterScreen}
       />
     </Stack.Navigator>
   );

@@ -55,7 +55,10 @@ import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
+import { decryptJournalEntry } from "../lib/encryption";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import {
   scheduleDailyReminder,
   cancelDailyReminder,
@@ -400,22 +403,196 @@ export default function SettingsScreen({
 
   const handleExportData = async () => {
     if (!user) return;
+
+    // Ask format preference first
+    Alert.alert(
+      "Export My Data",
+      "Choose an export format:",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Plain Text (.txt)", onPress: () => runExport("txt") },
+        { text: "JSON (.json)", onPress: () => runExport("json") },
+      ]
+    );
+  };
+
+  const runExport = async (format: "json" | "txt") => {
+    if (!user) return;
     setExportingData(true);
     try {
-      const { data: entries } = await supabase
-        .from("journal_entries").select("*").eq("user_id", user.id)
+      // 1. Fetch all journal entries
+      const { data: rawEntries, error: entriesError } = await supabase
+        .from("journal_entries")
+        .select("id, title, body, mood, created_at, updated_at")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      const { data: saved } = await supabase
-        .from("saved_content").select("*").eq("user_id", user.id)
-        .order("content_date", { ascending: false });
-      const entryCount = entries?.length ?? 0;
-      const savedCount = saved?.length ?? 0;
-      Alert.alert(
-        "Export Ready",
-        `Your data includes ${entryCount} journal ${entryCount === 1 ? "entry" : "entries"} and ${savedCount} saved items.\n\nFull export via email will be available in a future update.`
+
+      if (entriesError) throw entriesError;
+
+      // 2. Decrypt every entry on-device
+      const entries = await Promise.all(
+        (rawEntries || []).map(async (e) => {
+          try {
+            return await decryptJournalEntry(e);
+          } catch {
+            return e; // return as-is if decryption fails
+          }
+        })
       );
-    } catch {
-      Alert.alert("Error", "Could not export data. Please try again.");
+
+      // 3. Fetch saved bookmarks
+      const { data: saved, error: savedError } = await supabase
+        .from("saved_content")
+        .select("id, content_type, content_date, content")
+        .eq("user_id", user.id)
+        .order("content_date", { ascending: false });
+
+      if (savedError) throw savedError;
+
+      const exportedAt = new Date().toISOString();
+      const timestamp  = new Date().toLocaleDateString("en-US", {
+        year: "numeric", month: "long", day: "numeric",
+        hour: "2-digit", minute: "2-digit",
+      });
+
+      let fileContent: string;
+      let fileName: string;
+      let mimeType: string;
+
+      if (format === "json") {
+        // ── JSON export ─────────────────────────
+        const payload = {
+          exported_at: exportedAt,
+          app: "Al-Sakina",
+          version: "1.0.0",
+          account: user.email,
+          journal_entries: entries.map((e) => ({
+            id: e.id,
+            title: e.title || null,
+            body: e.body,
+            mood: (e as any).mood || null,
+            created_at: e.created_at,
+            updated_at: (e as any).updated_at || null,
+          })),
+          saved_content: (saved || []).map((s) => ({
+            id: s.id,
+            type: s.content_type,
+            date: s.content_date,
+            content: s.content,
+          })),
+        };
+        fileContent = JSON.stringify(payload, null, 2);
+        fileName    = `al-sakina-export-${Date.now()}.json`;
+        mimeType    = "application/json";
+
+      } else {
+        // ── Plain text export ────────────────────
+        const lines: string[] = [
+          "AL-SAKINA — MY DATA EXPORT",
+          "=".repeat(40),
+          `Exported: ${timestamp}`,
+          `Account:  ${user.email}`,
+          "",
+        ];
+
+        // Journal entries
+        lines.push(`JOURNAL ENTRIES (${entries.length})`);
+        lines.push("=".repeat(40));
+
+        if (entries.length === 0) {
+          lines.push("No journal entries.");
+        } else {
+          entries.forEach((e, i) => {
+            const date = new Date(e.created_at).toLocaleDateString("en-US", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+            });
+            lines.push("");
+            lines.push(`[${i + 1}] ${e.title || "Untitled"}`);
+            lines.push(`Date: ${date}`);
+            if ((e as any).mood) lines.push(`Mood: ${(e as any).mood}`);
+            lines.push("-".repeat(30));
+            lines.push(e.body || "");
+          });
+        }
+
+        // Saved bookmarks
+        lines.push("");
+        lines.push("");
+        lines.push(`SAVED CONTENT (${(saved || []).length})`);
+        lines.push("=".repeat(40));
+
+        const CONTENT_LABELS: Record<string, string> = {
+          hadith: "Hadith",
+          verse: "Quranic Verse",
+          story: "Story",
+          dua: "Du’a",
+        };
+
+        if (!saved || saved.length === 0) {
+          lines.push("No saved content.");
+        } else {
+          saved.forEach((s, i) => {
+            const label = CONTENT_LABELS[s.content_type] || s.content_type;
+            lines.push("");
+            lines.push(`[${i + 1}] ${label} · ${s.content_date}`);
+            lines.push("-".repeat(30));
+            const c = s.content;
+            if (s.content_type === "hadith") {
+              if (c.arabic)  lines.push(c.arabic);
+              if (c.english) lines.push(`"${c.english}"`);
+              if (c.source)  lines.push(`Source: ${c.source}`);
+            } else if (s.content_type === "verse") {
+              lines.push(`Theme: ${c.theme || ""}`);
+              (c.verses || []).forEach((v: any) => {
+                if (v.arabic)      lines.push(v.arabic);
+                if (v.translation) lines.push(`"${v.translation}"`);
+                if (v.reference)   lines.push(`— ${v.reference}`);
+              });
+            } else if (s.content_type === "story") {
+              lines.push(c.title || "");
+              if (c.narrative)  lines.push(c.narrative);
+              if (c.source)     lines.push(`Source: ${c.source}`);
+            } else if (s.content_type === "dua") {
+              if (c.arabic)         lines.push(c.arabic);
+              if (c.transliteration) lines.push(c.transliteration);
+              if (c.translation)    lines.push(`"${c.translation}"`);
+              if (c.source)         lines.push(`Source: ${c.source}`);
+            }
+          });
+        }
+
+        lines.push("");
+        lines.push("=".repeat(40));
+        lines.push("End of export · Al-Sakina");
+
+        fileContent = lines.join("\n");
+        fileName    = `al-sakina-export-${Date.now()}.txt`;
+        mimeType    = "text/plain";
+      }
+
+      // 4. Write to a temp file and share
+      const fileUri = FileSystem.cacheDirectory + fileName;
+      await FileSystem.writeAsStringAsync(fileUri, fileContent, {
+        encoding: "utf8",
+      });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType,
+          dialogTitle: "Save or share your Al-Sakina data",
+          UTI: format === "json" ? "public.json" : "public.plain-text",
+        });
+      } else {
+        Alert.alert(
+          "Sharing not available",
+          `Your export file is saved at:\n${fileUri}`
+        );
+      }
+
+    } catch (err: any) {
+      console.error("Export error:", err);
+      Alert.alert("Export failed", err.message || "Could not export data. Please try again.");
     } finally {
       setExportingData(false);
     }
@@ -563,7 +740,7 @@ export default function SettingsScreen({
         </Text>
 
         {/* Spacer to balance back button and keep title truly centered */}
-        <View style={{ width: 50 }} />
+        <View style={{ width: 70 }} />
       </View>
 
       <ScrollView
@@ -890,7 +1067,7 @@ export default function SettingsScreen({
           <SettingsRow
             icon={<HelpCircle size={17} color={_C.sage} />}
             label="Help Center"
-            onPress={() => Linking.openURL(HELP_CENTER_URL)}
+            onPress={() => navigation.navigate("HelpCenterScreen")}
             showArrow
           />
         </SettingsCard>
