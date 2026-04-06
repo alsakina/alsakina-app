@@ -1,4 +1,9 @@
 // navigation/TabNavigator.tsx
+// ─────────────────────────────────────────────────
+// Uses useColors() so the tab bar reacts to dark
+// mode instantly when the toggle is flipped.
+// ─────────────────────────────────────────────────
+
 import React from "react";
 import { Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -15,21 +20,23 @@ import LibraryStack from "./LibraryStack";
 import HomeScreen from "../screens/HomeScreen";
 import JournalStack from "./JournalStack";
 import GardenStack from "./GardenStack";
-import { Colors } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 
 const Tab = createBottomTabNavigator();
 
 export default function TabNavigator() {
+  const C = useColors();
+
   return (
     <Tab.Navigator
       initialRouteName="Sanctuary"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.sage,
-        tabBarInactiveTintColor: Colors.charcoalMuted,
+        tabBarActiveTintColor: C.sage,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarStyle: {
-          backgroundColor: Colors.cream,
-          borderTopColor: "rgba(135,169,107,0.12)",
+          backgroundColor: C.tabBar,
+          borderTopColor: C.border,
           borderTopWidth: 1,
           height: Platform.OS === "ios" ? 88 : 64,
           paddingBottom: Platform.OS === "ios" ? 28 : 8,

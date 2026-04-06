@@ -11,13 +11,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Search, X, Star } from "lucide-react-native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { NAMES_OF_ALLAH, NameEntry } from "../lib/namesData";
 import { NAME_DETAILS } from "../lib/nameDetailsData";
 import ScreenHeader from "../components/ScreenHeader";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Name of the Day helper ────────────────────── */
 
@@ -100,17 +97,17 @@ const NameOfTheDayCard = ({
       <Pressable onPress={onPress}>
         <View
           style={{
-            backgroundColor: _C.surface,
+            backgroundColor: "white",
             borderRadius: 22,
             borderWidth: 1.5,
-            borderColor: _C.borderStrong,
+            borderColor: "rgba(135,169,107,0.2)",
             overflow: "hidden",
           }}
         >
           {/* Label bar */}
           <View
             style={{
-              backgroundColor: _C.sageFaint,
+              backgroundColor: "rgba(135,169,107,0.08)",
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
@@ -118,19 +115,19 @@ const NameOfTheDayCard = ({
               gap: 6,
             }}
           >
-            <Star size={12} color={_C.sage} fill={_C.sage} />
+            <Star size={12} color={Colors.sage} fill={Colors.sage} />
             <Text
               style={{
                 fontSize: 11,
                 fontWeight: "700",
-                color: _C.sage,
+                color: Colors.sage,
                 letterSpacing: 1.5,
                 textTransform: "uppercase",
               }}
             >
               Name of the Day
             </Text>
-            <Star size={12} color={_C.sage} fill={_C.sage} />
+            <Star size={12} color={Colors.sage} fill={Colors.sage} />
           </View>
 
           {/* Content */}
@@ -139,7 +136,7 @@ const NameOfTheDayCard = ({
             <Text
               style={{
                 fontSize: 36,
-                color: _C.text,
+                color: Colors.charcoal,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 marginBottom: 6,
               }}
@@ -152,7 +149,7 @@ const NameOfTheDayCard = ({
               style={{
                 fontSize: 18,
                 fontWeight: "600",
-                color: _C.sage,
+                color: Colors.sage,
                 marginBottom: 2,
               }}
             >
@@ -163,7 +160,7 @@ const NameOfTheDayCard = ({
             <Text
               style={{
                 fontSize: 14,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 marginBottom: 16,
               }}
             >
@@ -175,7 +172,7 @@ const NameOfTheDayCard = ({
               style={{
                 width: 40,
                 height: 1,
-                backgroundColor: _C.borderStrong,
+                backgroundColor: "rgba(135,169,107,0.2)",
                 marginBottom: 16,
               }}
             />
@@ -185,7 +182,7 @@ const NameOfTheDayCard = ({
               <Text
                 style={{
                   fontSize: 14,
-                  color: _C.text,
+                  color: Colors.charcoal,
                   fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                   lineHeight: 22,
                   textAlign: "center",
@@ -213,7 +210,7 @@ const NameOfTheDayCard = ({
                 <Text
                   style={{
                     fontSize: 13,
-                    color: _C.text,
+                    color: Colors.charcoal,
                     fontStyle: "italic",
                     lineHeight: 20,
                     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -225,7 +222,7 @@ const NameOfTheDayCard = ({
                 <Text
                   style={{
                     fontSize: 11,
-                    color: _C.sage,
+                    color: Colors.sage,
                     fontWeight: "600",
                     marginTop: 6,
                   }}
@@ -261,7 +258,7 @@ const NameOfTheDayCard = ({
                 <Text
                   style={{
                     fontSize: 13,
-                    color: _C.text,
+                    color: Colors.charcoal,
                     fontStyle: "italic",
                     lineHeight: 20,
                     fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -289,7 +286,7 @@ const NameOfTheDayCard = ({
             <Text
               style={{
                 fontSize: 13,
-                color: _C.sage,
+                color: Colors.sage,
                 fontWeight: "600",
               }}
             >
@@ -335,9 +332,9 @@ const NameRow = React.memo(
           paddingVertical: 20,
           paddingLeft: 20,
           paddingRight: 24,
-          backgroundColor: _C.surface,
+          backgroundColor: "white",
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.03,
@@ -369,7 +366,7 @@ const NameRow = React.memo(
                   width: 30,
                   height: 30,
                   borderRadius: 6,
-                  backgroundColor: _C.border,
+                  backgroundColor: "rgba(135,169,107,0.12)",
                   transform: [{ rotate: "45deg" }],
                 }}
               />
@@ -377,7 +374,7 @@ const NameRow = React.memo(
                 style={{
                   fontSize: 13,
                   fontWeight: "700",
-                  color: _C.sage,
+                  color: Colors.sage,
                 }}
               >
                 {item.id}
@@ -390,7 +387,7 @@ const NameRow = React.memo(
                 style={{
                   fontSize: 15,
                   fontWeight: "600",
-                  color: _C.sage,
+                  color: Colors.sage,
                   marginBottom: 2,
                 }}
               >
@@ -399,7 +396,7 @@ const NameRow = React.memo(
               <Text
                 style={{
                   fontSize: 12,
-                  color: _C.textMuted,
+                  color: Colors.charcoalMuted,
                   lineHeight: 16,
                 }}
               >
@@ -411,7 +408,7 @@ const NameRow = React.memo(
             <Text
               style={{
                 fontSize: 20,
-                color: _C.text,
+                color: Colors.charcoal,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 marginLeft: 8,
                 marginRight: 9,
@@ -433,8 +430,6 @@ export default function LearnScreen({
 }: {
   navigation: any;
 }) {
-  const C = useColors();
-  _C = C;
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<TextInput>(null);
   const nameOfDay = getNameOfTheDay();
@@ -477,7 +472,7 @@ export default function LearnScreen({
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       <ScreenHeader />
@@ -488,7 +483,7 @@ export default function LearnScreen({
         <Text
           style={{
             fontSize: 26,
-            color: _C.text,
+            color: Colors.charcoal,
             textAlign: "center",
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             marginBottom: 4,
@@ -499,7 +494,7 @@ export default function LearnScreen({
         <Text
           style={{
             fontSize: 14,
-            color: _C.textMuted,
+            color: Colors.charcoalMuted,
             textAlign: "center",
             marginBottom: 16,
           }}
@@ -512,7 +507,7 @@ export default function LearnScreen({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: _C.surface,
+            backgroundColor: "white",
             borderRadius: 14,
             paddingHorizontal: 14,
             paddingVertical: Platform.OS === "ios" ? 10 : 4,
@@ -520,18 +515,18 @@ export default function LearnScreen({
             borderColor: "rgba(135,169,107,0.1)",
           }}
         >
-          <Search size={18} color={_C.textMuted} />
+          <Search size={18} color={Colors.charcoalMuted} />
           <TextInput
             ref={searchInputRef}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search by name, meaning, or number…"
-            placeholderTextColor={_C.textMuted}
+            placeholderTextColor={Colors.charcoalMuted}
             style={{
               flex: 1,
               marginLeft: 10,
               fontSize: 15,
-              color: _C.text,
+              color: Colors.charcoal,
               paddingVertical: 4,
             }}
             autoCorrect={false}
@@ -545,7 +540,7 @@ export default function LearnScreen({
               }}
               hitSlop={8}
             >
-              <X size={18} color={_C.textMuted} />
+              <X size={18} color={Colors.charcoalMuted} />
             </Pressable>
           )}
         </View>
@@ -575,7 +570,7 @@ export default function LearnScreen({
             <Text
               style={{
                 fontSize: 15,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 textAlign: "center",
               }}
             >

@@ -20,15 +20,12 @@ import {
   Sparkles,
 } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import { decryptJournalEntry } from "../lib/encryption";
 import ScreenHeader from "../components/ScreenHeader";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -89,7 +86,7 @@ const TabToggle = ({
   <View
     style={{
       flexDirection: "row",
-      backgroundColor: _C.sageFaint,
+      backgroundColor: "rgba(135,169,107,0.08)",
       borderRadius: 12,
       padding: 3,
       marginBottom: 20,
@@ -118,19 +115,19 @@ const TabToggle = ({
         {tab === "entries" ? (
           <NotebookPen
             size={15}
-            color={active === tab ? _C.sage : _C.textMuted}
+            color={active === tab ? Colors.sage : Colors.charcoalMuted}
           />
         ) : (
           <BookMarked
             size={15}
-            color={active === tab ? _C.sage : _C.textMuted}
+            color={active === tab ? Colors.sage : Colors.charcoalMuted}
           />
         )}
         <Text
           style={{
             fontSize: 13,
             fontWeight: "600",
-            color: active === tab ? _C.sage : _C.textMuted,
+            color: active === tab ? Colors.sage : Colors.charcoalMuted,
             marginLeft: 6,
           }}
         >
@@ -300,11 +297,11 @@ const EntryRow = ({
     <Pressable onPress={onPress}>
       <View
         style={{
-          backgroundColor: _C.surface,
+          backgroundColor: "white",
           borderRadius: 16,
           padding: 16,
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
         }}
       >
       <View
@@ -319,7 +316,7 @@ const EntryRow = ({
           style={{
             fontSize: 15,
             fontWeight: "700",
-            color: _C.text,
+            color: Colors.charcoal,
             flex: 1,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
           }}
@@ -330,7 +327,7 @@ const EntryRow = ({
         <Text
           style={{
             fontSize: 12,
-            color: _C.textMuted,
+            color: Colors.charcoalMuted,
             marginLeft: 12,
           }}
         >
@@ -340,7 +337,7 @@ const EntryRow = ({
       <Text
         style={{
           fontSize: 13,
-          color: _C.textMuted,
+          color: Colors.charcoalMuted,
           lineHeight: 18,
         }}
         numberOfLines={2}
@@ -350,7 +347,7 @@ const EntryRow = ({
       {entry.mood && (
         <View
           style={{
-            backgroundColor: _C.sageFaint,
+            backgroundColor: "rgba(135,169,107,0.08)",
             borderRadius: 8,
             paddingVertical: 3,
             paddingHorizontal: 8,
@@ -359,7 +356,7 @@ const EntryRow = ({
           }}
         >
           <Text
-            style={{ fontSize: 11, color: _C.sage, fontWeight: "600" }}
+            style={{ fontSize: 11, color: Colors.sage, fontWeight: "600" }}
           >
             {entry.mood}
           </Text>
@@ -421,11 +418,11 @@ const SavedRow = ({
     <Pressable onPress={onPress}>
       <View
         style={{
-          backgroundColor: _C.surface,
+          backgroundColor: "white",
           borderRadius: 16,
           padding: 16,
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
         }}
       >
       <View
@@ -438,19 +435,19 @@ const SavedRow = ({
       >
         <View
           style={{
-            backgroundColor: _C.sageFaint,
+            backgroundColor: "rgba(135,169,107,0.08)",
             borderRadius: 8,
             paddingVertical: 3,
             paddingHorizontal: 8,
           }}
         >
           <Text
-            style={{ fontSize: 11, color: _C.sage, fontWeight: "600" }}
+            style={{ fontSize: 11, color: Colors.sage, fontWeight: "600" }}
           >
             {CONTENT_LABELS[item.content_type] || item.content_type}
           </Text>
         </View>
-        <Text style={{ fontSize: 12, color: _C.textMuted }}>
+        <Text style={{ fontSize: 12, color: Colors.charcoalMuted }}>
           {dateStr}
         </Text>
       </View>
@@ -458,7 +455,7 @@ const SavedRow = ({
         <Text
           style={{
             fontSize: 13,
-            color: _C.text,
+            color: Colors.charcoal,
             lineHeight: 18,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
           }}
@@ -480,8 +477,6 @@ export default function JournalScreen({
 }: {
   navigation: any;
 }) {
-  const C = useColors();
-  _C = C;
   const { user } = useAuth();
   const { isPremium } = usePremium();
   const headerFade = useRef(new Animated.Value(0)).current;
@@ -556,7 +551,7 @@ export default function JournalScreen({
   if (!user) {
     return (
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: _C.background }}
+        style={{ flex: 1, backgroundColor: Colors.cream }}
         edges={["top"]}
       >
         <ScreenHeader />
@@ -572,7 +567,7 @@ export default function JournalScreen({
           <Text
             style={{
               fontSize: 22,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               textAlign: "center",
               marginBottom: 10,
@@ -584,7 +579,7 @@ export default function JournalScreen({
           <Text
             style={{
               fontSize: 14,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
               textAlign: "center",
               lineHeight: 20,
               marginBottom: 24,
@@ -598,7 +593,7 @@ export default function JournalScreen({
           >
             <View
               style={{
-                backgroundColor: _C.sage,
+                backgroundColor: Colors.sage,
                 borderRadius: 14,
                 paddingVertical: 16,
                 paddingHorizontal: 40,
@@ -623,7 +618,7 @@ export default function JournalScreen({
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       <ScreenHeader />
@@ -641,7 +636,7 @@ export default function JournalScreen({
           <Text
             style={{
               fontSize: 24,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             }}
           >
@@ -674,12 +669,12 @@ export default function JournalScreen({
               >
                 <View
                   style={{
-                    backgroundColor: _C.surface,
+                    backgroundColor: "white",
                     borderRadius: 18,
                     padding: 16,
                     marginBottom: 16,
                     borderWidth: 1.5,
-                    borderColor: _C.sageFaintMid,
+                    borderColor: "rgba(135,169,107,0.15)",
                     flexDirection: "row",
                     alignItems: "center",
                   }}
@@ -695,14 +690,14 @@ export default function JournalScreen({
                       marginRight: 14,
                     }}
                   >
-                    <TrendingUp size={20} color={_C.sage} />
+                    <TrendingUp size={20} color={Colors.sage} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
                         fontSize: 15,
                         fontWeight: "700",
-                        color: _C.text,
+                        color: Colors.charcoal,
                         marginBottom: 2,
                       }}
                     >
@@ -711,7 +706,7 @@ export default function JournalScreen({
                     <Text
                       style={{
                         fontSize: 12,
-                        color: _C.textMuted,
+                        color: Colors.charcoalMuted,
                       }}
                     >
                       See your spiritual growth this week
@@ -719,13 +714,13 @@ export default function JournalScreen({
                   </View>
                   <View
                     style={{
-                      backgroundColor: _C.sageFaint,
+                      backgroundColor: "rgba(135,169,107,0.08)",
                       borderRadius: 8,
                       paddingVertical: 4,
                       paddingHorizontal: 8,
                     }}
                   >
-                    <Sparkles size={14} color={_C.sage} />
+                    <Sparkles size={14} color={Colors.sage} />
                   </View>
                 </View>
               </Pressable>
@@ -747,7 +742,7 @@ export default function JournalScreen({
               <Text
                 style={{
                   fontSize: 14,
-                  color: _C.textMuted,
+                  color: Colors.charcoalMuted,
                   textAlign: "center",
                   fontStyle: "italic",
                   fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -786,7 +781,7 @@ export default function JournalScreen({
               <Text
                 style={{
                   fontSize: 14,
-                  color: _C.textMuted,
+                  color: Colors.charcoalMuted,
                   textAlign: "center",
                   fontStyle: "italic",
                   fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -816,7 +811,7 @@ export default function JournalScreen({
               width: 56,
               height: 56,
               borderRadius: 28,
-              backgroundColor: _C.sage,
+              backgroundColor: Colors.sage,
               alignItems: "center",
               justifyContent: "center",
               shadowColor: "#000",

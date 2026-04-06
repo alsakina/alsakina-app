@@ -12,13 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RotateCcw, ChevronDown, ChevronUp, History } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
 import ScreenHeader from "../components/ScreenHeader";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Date helper (local timezone) ──────────────── */
 
@@ -172,7 +169,7 @@ const ProgressRing = ({
           height: size,
           borderRadius: size / 2,
           borderWidth: strokeWidth,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
         }}
       />
       {/* We'll use a simple View-based approach since SVG isn't available */}
@@ -183,22 +180,22 @@ const ProgressRing = ({
           height: size,
           borderRadius: size / 2,
           borderWidth: strokeWidth,
-          borderColor: _C.sage,
+          borderColor: Colors.sage,
           borderTopColor:
             progress > 0.75
-              ? _C.sage
+              ? Colors.sage
               : "transparent",
           borderRightColor:
             progress > 0.5
-              ? _C.sage
+              ? Colors.sage
               : "transparent",
           borderBottomColor:
             progress > 0.25
-              ? _C.sage
+              ? Colors.sage
               : "transparent",
           borderLeftColor:
             progress > 0
-              ? _C.sage
+              ? Colors.sage
               : "transparent",
           opacity: 0.6,
           transform: [{ rotate: "-90deg" }],
@@ -226,12 +223,12 @@ const DhikrPill = ({
       paddingHorizontal: 16,
       borderRadius: 14,
       backgroundColor: isSelected
-        ? _C.borderStrong
+        ? "rgba(135,169,107,0.2)"
         : "white",
       borderWidth: 1.5,
       borderColor: isSelected
-        ? _C.sage
-        : _C.sageFaint,
+        ? Colors.sage
+        : "rgba(135,169,107,0.08)",
       marginRight: 8,
       alignItems: "center",
       minWidth: 90,
@@ -240,7 +237,7 @@ const DhikrPill = ({
     <Text
       style={{
         fontSize: 16,
-        color: _C.text,
+        color: Colors.charcoal,
         fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
         marginBottom: 2,
       }}
@@ -250,7 +247,7 @@ const DhikrPill = ({
     <Text
       style={{
         fontSize: 11,
-        color: isSelected ? _C.sage : _C.textMuted,
+        color: isSelected ? Colors.sage : Colors.charcoalMuted,
         fontWeight: "600",
       }}
     >
@@ -262,8 +259,6 @@ const DhikrPill = ({
 /* ── Main screen ───────────────────────────────── */
 
 export default function DhikrScreen() {
-  const C = useColors();
-  _C = C;
   const { user } = useAuth();
   const [selected, setSelected] = useState<DhikrOption>(DHIKR_PRESETS[0]);
   const [count, setCount] = useState(0);
@@ -453,7 +448,7 @@ export default function DhikrScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       <ScreenHeader />
@@ -479,7 +474,7 @@ export default function DhikrScreen() {
           <Text
             style={{
               fontSize: 24,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               marginBottom: 4,
             }}
@@ -489,7 +484,7 @@ export default function DhikrScreen() {
           <Text
             style={{
               fontSize: 13,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
             }}
           >
             {todayTotal} total today
@@ -510,7 +505,7 @@ export default function DhikrScreen() {
           <Text
             style={{
               fontSize: 13,
-              color: _C.sage,
+              color: Colors.sage,
               fontWeight: "600",
               marginRight: 4,
             }}
@@ -518,9 +513,9 @@ export default function DhikrScreen() {
             {showSelector ? "Hide options" : "Change dhikr"}
           </Text>
           {showSelector ? (
-            <ChevronUp size={16} color={_C.sage} />
+            <ChevronUp size={16} color={Colors.sage} />
           ) : (
-            <ChevronDown size={16} color={_C.sage} />
+            <ChevronDown size={16} color={Colors.sage} />
           )}
         </Pressable>
 
@@ -574,7 +569,7 @@ export default function DhikrScreen() {
                   style={{
                     fontSize: 56,
                     fontWeight: "300",
-                    color: _C.text,
+                    color: Colors.charcoal,
                     fontFamily:
                       Platform.OS === "ios" ? "Georgia" : "serif",
                   }}
@@ -584,7 +579,7 @@ export default function DhikrScreen() {
                 <Text
                   style={{
                     fontSize: 13,
-                    color: _C.textMuted,
+                    color: Colors.charcoalMuted,
                     marginTop: -2,
                   }}
                 >
@@ -599,7 +594,7 @@ export default function DhikrScreen() {
             <Text
               style={{
                 fontSize: 28,
-                color: _C.text,
+                color: Colors.charcoal,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 marginBottom: 4,
                 textAlign: "center",
@@ -610,7 +605,7 @@ export default function DhikrScreen() {
             <Text
               style={{
                 fontSize: 15,
-                color: _C.sage,
+                color: Colors.sage,
                 fontWeight: "600",
                 marginBottom: 4,
               }}
@@ -620,7 +615,7 @@ export default function DhikrScreen() {
             <Text
               style={{
                 fontSize: 13,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontStyle: "italic",
               }}
             >
@@ -642,7 +637,7 @@ export default function DhikrScreen() {
               <Text
                 style={{
                   fontSize: 14,
-                  color: _C.sage,
+                  color: Colors.sage,
                   fontWeight: "600",
                   textAlign: "center",
                 }}
@@ -665,10 +660,10 @@ export default function DhikrScreen() {
               borderRadius: 12,
             }}
           >
-            <RotateCcw size={16} color={_C.textMuted} />
+            <RotateCcw size={16} color={Colors.charcoalMuted} />
             <Text
               style={{
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontSize: 14,
                 marginLeft: 6,
               }}
@@ -698,7 +693,7 @@ export default function DhikrScreen() {
                   style={{
                     flex: 1,
                     height: 1,
-                    backgroundColor: _C.border,
+                    backgroundColor: "rgba(135,169,107,0.12)",
                   }}
                 />
                 <View
@@ -708,12 +703,12 @@ export default function DhikrScreen() {
                     gap: 6,
                   }}
                 >
-                  <History size={14} color={_C.textMuted} />
+                  <History size={14} color={Colors.charcoalMuted} />
                   <Text
                     style={{
                       fontSize: 11,
                       fontWeight: "600",
-                      color: _C.textMuted,
+                      color: Colors.charcoalMuted,
                       letterSpacing: 1.2,
                       textTransform: "uppercase",
                     }}
@@ -721,16 +716,16 @@ export default function DhikrScreen() {
                     Past 7 Days
                   </Text>
                   {showHistory ? (
-                    <ChevronUp size={14} color={_C.textMuted} />
+                    <ChevronUp size={14} color={Colors.charcoalMuted} />
                   ) : (
-                    <ChevronDown size={14} color={_C.textMuted} />
+                    <ChevronDown size={14} color={Colors.charcoalMuted} />
                   )}
                 </View>
                 <View
                   style={{
                     flex: 1,
                     height: 1,
-                    backgroundColor: _C.border,
+                    backgroundColor: "rgba(135,169,107,0.12)",
                   }}
                 />
               </View>
@@ -759,13 +754,13 @@ export default function DhikrScreen() {
                       >
                         <View
                           style={{
-                            backgroundColor: _C.surface,
+                            backgroundColor: "white",
                             borderRadius: 14,
                             padding: 14,
                             borderWidth: 1,
                             borderColor: isCurrentDay
-                              ? _C.borderStrong
-                              : _C.sageFaint,
+                              ? "rgba(135,169,107,0.2)"
+                              : "rgba(135,169,107,0.08)",
                             flexDirection: "row",
                             alignItems: "center",
                             justifyContent: "space-between",
@@ -777,8 +772,8 @@ export default function DhikrScreen() {
                                 fontSize: 14,
                                 fontWeight: isCurrentDay ? "700" : "600",
                                 color: isCurrentDay
-                                  ? _C.sage
-                                  : _C.text,
+                                  ? Colors.sage
+                                  : Colors.charcoal,
                               }}
                             >
                               {dayLabel}
@@ -804,7 +799,7 @@ export default function DhikrScreen() {
                                   style={{
                                     fontSize: 14,
                                     fontWeight: "700",
-                                    color: _C.sage,
+                                    color: Colors.sage,
                                   }}
                                 >
                                   {day.total}
@@ -814,7 +809,7 @@ export default function DhikrScreen() {
                               <Text
                                 style={{
                                   fontSize: 13,
-                                  color: _C.textMuted,
+                                  color: Colors.charcoalMuted,
                                   fontStyle: "italic",
                                 }}
                               >
@@ -825,12 +820,12 @@ export default function DhikrScreen() {
                               isExpanded ? (
                                 <ChevronUp
                                   size={14}
-                                  color={_C.textMuted}
+                                  color={Colors.charcoalMuted}
                                 />
                               ) : (
                                 <ChevronDown
                                   size={14}
-                                  color={_C.textMuted}
+                                  color={Colors.charcoalMuted}
                                 />
                               )
                             )}
@@ -861,7 +856,7 @@ export default function DhikrScreen() {
                               <Text
                                 style={{
                                   fontSize: 13,
-                                  color: _C.text,
+                                  color: Colors.charcoal,
                                 }}
                               >
                                 {item.transliteration}
@@ -888,7 +883,7 @@ export default function DhikrScreen() {
                                       width: `${Math.min(100, (item.count / (DHIKR_PRESETS.find((p) => p.key === item.key)?.target || 33)) * 100)}%`,
                                       height: 4,
                                       borderRadius: 2,
-                                      backgroundColor: _C.sage,
+                                      backgroundColor: Colors.sage,
                                     }}
                                   />
                                 </View>
@@ -896,7 +891,7 @@ export default function DhikrScreen() {
                                   style={{
                                     fontSize: 13,
                                     fontWeight: "600",
-                                    color: _C.sage,
+                                    color: Colors.sage,
                                     minWidth: 28,
                                     textAlign: "right",
                                   }}
@@ -926,14 +921,14 @@ export default function DhikrScreen() {
                     <Text
                       style={{
                         fontSize: 12,
-                        color: _C.textMuted,
+                        color: Colors.charcoalMuted,
                       }}
                     >
                       Week total:{" "}
                       <Text
                         style={{
                           fontWeight: "700",
-                          color: _C.sage,
+                          color: Colors.sage,
                         }}
                       >
                         {history.reduce((sum, d) => sum + d.total, 0)}

@@ -22,14 +22,11 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
 import ScreenHeader from "../components/ScreenHeader";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Types ─────────────────────────────────────── */
 
@@ -140,7 +137,7 @@ const SearchResultCard = ({
   result: SearchResult;
   onPress: () => void;
 }) => {
-  const color = CONTENT_COLORS[result.type] || _C.sage;
+  const color = CONTENT_COLORS[result.type] || Colors.sage;
   const date = new Date(result.date + "T12:00:00");
   const dateStr = date.toLocaleDateString("en-US", {
     month: "short",
@@ -162,11 +159,11 @@ const SearchResultCard = ({
       <Pressable onPress={onPress}>
         <View
           style={{
-            backgroundColor: _C.surface,
+            backgroundColor: "white",
             borderRadius: 16,
             padding: 14,
             borderWidth: 1,
-            borderColor: _C.sageFaint,
+            borderColor: "rgba(135,169,107,0.08)",
             borderLeftWidth: 3,
             borderLeftColor: color,
           }}
@@ -192,7 +189,7 @@ const SearchResultCard = ({
               </Text>
             </View>
             <Text
-              style={{ fontSize: 11, color: _C.textMuted }}
+              style={{ fontSize: 11, color: Colors.charcoalMuted }}
             >
               {dateStr}
             </Text>
@@ -201,7 +198,7 @@ const SearchResultCard = ({
             <Text
               style={{
                 fontSize: 13,
-                color: _C.text,
+                color: Colors.charcoal,
                 lineHeight: 18,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               }}
@@ -292,11 +289,11 @@ const GardenTile = ({
         onPress={onPress}
         disabled={isDisabled}
         style={({ pressed }) => ({
-          backgroundColor: _C.surface,
+          backgroundColor: "white",
           borderRadius: 22,
           padding: 20,
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.04,
@@ -328,7 +325,7 @@ const GardenTile = ({
             style={{
               fontSize: 16,
               fontWeight: "700",
-              color: _C.text,
+              color: Colors.charcoal,
               marginBottom: 4,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               textAlign: "center",
@@ -339,7 +336,7 @@ const GardenTile = ({
           <Text
             style={{
               fontSize: 12,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
               lineHeight: 16,
               textAlign: "center",
             }}
@@ -403,7 +400,7 @@ const DatePill = ({
         style={{
           fontSize: 11,
           fontWeight: "600",
-          color: isSelected ? _C.sage : _C.textMuted,
+          color: isSelected ? Colors.sage : Colors.charcoalMuted,
           letterSpacing: 0.3,
           marginBottom: 4,
           textAlign: "center",
@@ -418,7 +415,7 @@ const DatePill = ({
         style={{
           fontSize: 18,
           fontWeight: isSelected ? "700" : "500",
-          color: isSelected ? _C.text : _C.textMuted,
+          color: isSelected ? Colors.charcoal : Colors.charcoalMuted,
           fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
           textAlign: "center",
           alignSelf: "center",
@@ -433,7 +430,7 @@ const DatePill = ({
           width: 5,
           height: 5,
           borderRadius: 3,
-          backgroundColor: hasAnyContent ? _C.sage : "transparent",
+          backgroundColor: hasAnyContent ? Colors.sage : "transparent",
           marginTop: 5,
           alignSelf: "center",
         }}
@@ -450,8 +447,6 @@ export default function ExploreScreen({
 }: {
   navigation: any;
 }) {
-  const C = useColors();
-  _C = C;
   const headerFade = useRef(new Animated.Value(0)).current;
   const { user } = useAuth();
   const { isPremium } = usePremium();
@@ -620,7 +615,7 @@ export default function ExploreScreen({
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       <ScreenHeader />
@@ -645,7 +640,7 @@ export default function ExploreScreen({
           <Text
             style={{
               fontSize: 26,
-              color: _C.text,
+              color: Colors.charcoal,
               textAlign: "center",
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               marginBottom: 6,
@@ -656,7 +651,7 @@ export default function ExploreScreen({
           <Text
             style={{
               fontSize: 14,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
               textAlign: "center",
               lineHeight: 20,
               maxWidth: 260,
@@ -700,7 +695,7 @@ export default function ExploreScreen({
           <Text
             style={{
               fontSize: 12,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
               fontStyle: "italic",
               textAlign: "center",
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -735,14 +730,14 @@ export default function ExploreScreen({
               style={{
                 flex: 1,
                 height: 1,
-                backgroundColor: _C.border,
+                backgroundColor: "rgba(135,169,107,0.12)",
               }}
             />
             <Text
               style={{
                 fontSize: 11,
                 fontWeight: "600",
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 letterSpacing: 1.2,
                 textTransform: "uppercase",
               }}
@@ -753,7 +748,7 @@ export default function ExploreScreen({
               style={{
                 flex: 1,
                 height: 1,
-                backgroundColor: _C.border,
+                backgroundColor: "rgba(135,169,107,0.12)",
               }}
             />
           </View>
@@ -763,7 +758,7 @@ export default function ExploreScreen({
             style={{
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: _C.surface,
+              backgroundColor: "white",
               borderRadius: 14,
               paddingHorizontal: 14,
               paddingVertical: Platform.OS === "ios" ? 10 : 4,
@@ -772,27 +767,27 @@ export default function ExploreScreen({
               marginBottom: 12,
             }}
           >
-            <Search size={18} color={_C.textMuted} />
+            <Search size={18} color={Colors.charcoalMuted} />
             <TextInput
               ref={searchInputRef}
               value={searchQuery}
               onChangeText={setSearchQuery}
               onSubmitEditing={handleSearch}
               placeholder="Search hadith, verses, stories, du'as…"
-              placeholderTextColor={_C.textMuted}
+              placeholderTextColor={Colors.charcoalMuted}
               returnKeyType="search"
               autoCorrect={false}
               style={{
                 flex: 1,
                 marginLeft: 10,
                 fontSize: 15,
-                color: _C.text,
+                color: Colors.charcoal,
                 paddingVertical: 4,
               }}
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={clearSearch} hitSlop={8}>
-                <X size={18} color={_C.textMuted} />
+                <X size={18} color={Colors.charcoalMuted} />
               </Pressable>
             )}
           </View>
@@ -803,7 +798,7 @@ export default function ExploreScreen({
               style={{
                 textAlign: "center",
                 fontSize: 13,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontStyle: "italic",
                 marginVertical: 12,
               }}
@@ -817,7 +812,7 @@ export default function ExploreScreen({
               style={{
                 textAlign: "center",
                 fontSize: 13,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontStyle: "italic",
                 marginVertical: 12,
               }}
@@ -853,16 +848,16 @@ export default function ExploreScreen({
                       alignItems: "center",
                       justifyContent: "center",
                       paddingVertical: 12,
-                      backgroundColor: _C.sageFaint,
+                      backgroundColor: "rgba(135,169,107,0.06)",
                       borderRadius: 12,
                       marginTop: 4,
                     }}
                   >
-                    <Crown size={14} color={_C.sage} />
+                    <Crown size={14} color={Colors.sage} />
                     <Text
                       style={{
                         fontSize: 13,
-                        color: _C.sage,
+                        color: Colors.sage,
                         fontWeight: "600",
                         marginLeft: 6,
                       }}
@@ -898,14 +893,14 @@ export default function ExploreScreen({
               style={{
                 flex: 1,
                 height: 1,
-                backgroundColor: _C.border,
+                backgroundColor: "rgba(135,169,107,0.12)",
               }}
             />
             <Text
               style={{
                 fontSize: 11,
                 fontWeight: "600",
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 letterSpacing: 1.2,
                 textTransform: "uppercase",
               }}
@@ -916,7 +911,7 @@ export default function ExploreScreen({
               style={{
                 flex: 1,
                 height: 1,
-                backgroundColor: _C.border,
+                backgroundColor: "rgba(135,169,107,0.12)",
               }}
             />
           </View>
@@ -942,13 +937,13 @@ export default function ExploreScreen({
                   padding: 4,
                 }}
               >
-                <ChevronLeft size={20} color={_C.sage} />
+                <ChevronLeft size={20} color={Colors.sage} />
               </Pressable>
 
               <Text
                 style={{
                   fontSize: 12,
-                  color: _C.textMuted,
+                  color: Colors.charcoalMuted,
                   fontWeight: "600",
                 }}
               >
@@ -963,7 +958,7 @@ export default function ExploreScreen({
                 disabled={archivePage === 0}
                 style={{ opacity: archivePage === 0 ? 0.3 : 1, padding: 4 }}
               >
-                <ChevronRight size={20} color={_C.sage} />
+                <ChevronRight size={20} color={Colors.sage} />
               </Pressable>
             </View>
           )}
@@ -997,7 +992,7 @@ export default function ExploreScreen({
               style={{
                 textAlign: "center",
                 fontSize: 12,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontStyle: "italic",
                 marginTop: 10,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -1029,15 +1024,15 @@ export default function ExploreScreen({
                   justifyContent: "center",
                   marginTop: 16,
                   paddingVertical: 10,
-                  backgroundColor: _C.sageFaint,
+                  backgroundColor: "rgba(135,169,107,0.06)",
                   borderRadius: 12,
                 }}
               >
-                <Crown size={14} color={_C.sage} />
+                <Crown size={14} color={Colors.sage} />
                 <Text
                   style={{
                     fontSize: 12,
-                    color: _C.sage,
+                    color: Colors.sage,
                     fontWeight: "600",
                     marginLeft: 6,
                   }}

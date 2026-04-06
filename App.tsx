@@ -1,7 +1,8 @@
-// App.tsx (or your root entry point)
+// App.tsx
 // ─────────────────────────────────────────────────
-// Wrap the app with Auth and Premium providers.
-// Adjust to match your existing App.tsx structure.
+// ThemeProvider must wrap NavigationContainer so
+// that TabNavigator and all screens can call
+// useColors() / useTheme() during render.
 // ─────────────────────────────────────────────────
 
 import React from "react";
@@ -10,19 +11,22 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider } from "./src/lib/AuthContext";
 import { PremiumProvider } from "./src/lib/PremiumContext";
+import { ThemeProvider } from "./src/lib/ThemeContext";
 import RootNavigator from "./src/navigation/RootNavigator";
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <PremiumProvider>
-            <NavigationContainer>
-              <RootNavigator />
-            </NavigationContainer>
-          </PremiumProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <PremiumProvider>
+              <NavigationContainer>
+                <RootNavigator />
+              </NavigationContainer>
+            </PremiumProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

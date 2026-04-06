@@ -1,20 +1,20 @@
 // components/ScreenHeader.tsx
 // ─────────────────────────────────────────────────
 // Reusable header with optional title and settings
-// gear icon. Use at the top of any screen.
+// gear icon. Uses useColors() for dark mode support.
 // ─────────────────────────────────────────────────
 
 import React from "react";
 import { View, Pressable } from "react-native";
 import { Settings } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Colors } from "../lib/theme";
+import { useColors } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
 
 interface ScreenHeaderProps {
-  children?: React.ReactNode;  // left side content (title, etc.)
-  rightContent?: React.ReactNode;  // custom right content (overrides gear)
-  showSettings?: boolean;  // default true
+  children?: React.ReactNode;
+  rightContent?: React.ReactNode;
+  showSettings?: boolean;
 }
 
 export default function ScreenHeader({
@@ -24,23 +24,14 @@ export default function ScreenHeader({
 }: ScreenHeaderProps) {
   const navigation = useNavigation<any>();
   const { user } = useAuth();
+  const C = useColors();
 
   const handleGearPress = () => {
-    if (user) {
-      // Navigate to settings via root navigator
-      const root =
-        navigation.getParent()?.getParent?.() ||
-        navigation.getParent() ||
-        navigation;
-      root.navigate("SettingsScreen");
-    } else {
-      // Not signed in — open auth modal
-      const root =
-        navigation.getParent()?.getParent?.() ||
-        navigation.getParent() ||
-        navigation;
-      root.navigate("Auth");
-    }
+    const root =
+      navigation.getParent()?.getParent?.() ||
+      navigation.getParent() ||
+      navigation;
+    root.navigate(user ? "SettingsScreen" : "Auth");
   };
 
   return (
@@ -54,19 +45,13 @@ export default function ScreenHeader({
         paddingBottom: 8,
       }}
     >
-      {/* Left side (title, etc.) */}
       <View style={{ flex: 1 }}>{children}</View>
 
-      {/* Right side */}
       {rightContent ? (
         rightContent
       ) : showSettings ? (
-        <Pressable
-          onPress={handleGearPress}
-          hitSlop={12}
-          style={{ padding: 4 }}
-        >
-          <Settings size={20} color={Colors.charcoalMuted} />
+        <Pressable onPress={handleGearPress} hitSlop={12} style={{ padding: 4 }}>
+          <Settings size={20} color={C.textMuted} />
         </Pressable>
       ) : null}
     </View>

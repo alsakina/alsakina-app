@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Send, RefreshCw, Sparkles, Bookmark, ChevronLeft } from "lucide-react-native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
 import { supabase } from "../lib/supabase";
@@ -27,9 +27,6 @@ import {
   SpiritualGuidance,
   DivineName,
 } from "../lib/intelligence";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Decorative diamond row ────────────────────── */
 
@@ -97,11 +94,11 @@ const NameCard = ({
     >
       <View
         style={{
-          backgroundColor: _C.surface,
+          backgroundColor: "white",
           borderRadius: 24,
           padding: 24,
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.04,
@@ -113,7 +110,7 @@ const NameCard = ({
         <Text
           style={{
             textAlign: "center",
-            color: _C.text,
+            color: Colors.charcoal,
             fontSize: 30,
             marginBottom: 4,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -126,7 +123,7 @@ const NameCard = ({
         <Text
           style={{
             textAlign: "center",
-            color: _C.sage,
+            color: Colors.sage,
             fontSize: 16,
             fontWeight: "600",
           }}
@@ -136,7 +133,7 @@ const NameCard = ({
         <Text
           style={{
             textAlign: "center",
-            color: _C.textMuted,
+            color: Colors.charcoalMuted,
             fontSize: 14,
             marginBottom: 16,
           }}
@@ -148,7 +145,7 @@ const NameCard = ({
         <View
           style={{
             height: 1,
-            backgroundColor: _C.sageFaintMid,
+            backgroundColor: "rgba(135,169,107,0.15)",
             marginBottom: 12,
           }}
         />
@@ -156,7 +153,7 @@ const NameCard = ({
         {/* Explanation */}
         <Text
           style={{
-            color: _C.text,
+            color: Colors.charcoal,
             fontSize: 14,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             lineHeight: 24,
@@ -205,7 +202,7 @@ const GuidanceResult = ({
       >
         <View
           style={{
-            backgroundColor: _C.sageFaint,
+            backgroundColor: "rgba(135,169,107,0.06)",
             borderRadius: 16,
             padding: 16,
             borderLeftWidth: 3,
@@ -216,7 +213,7 @@ const GuidanceResult = ({
             style={{
               fontSize: 11,
               fontWeight: "700",
-              color: _C.sage,
+              color: Colors.sage,
               letterSpacing: 1,
               textTransform: "uppercase",
               marginBottom: 6,
@@ -227,7 +224,7 @@ const GuidanceResult = ({
           <Text
             style={{
               fontSize: 15,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               lineHeight: 24,
               fontStyle: "italic",
@@ -244,7 +241,7 @@ const GuidanceResult = ({
         <Text
           style={{
             textAlign: "center",
-            color: _C.sage,
+            color: Colors.sage,
             fontSize: 12,
             letterSpacing: 2,
             textTransform: "uppercase",
@@ -272,7 +269,7 @@ const GuidanceResult = ({
         >
           <View
             style={{
-              backgroundColor: _C.surface,
+              backgroundColor: "white",
               borderRadius: 16,
               padding: 20,
               borderWidth: 1,
@@ -281,7 +278,7 @@ const GuidanceResult = ({
           >
             <Text
               style={{
-                color: _C.text,
+                color: Colors.charcoal,
                 fontSize: 14,
                 textAlign: "center",
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -311,12 +308,12 @@ const GuidanceResult = ({
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <Bookmark
               size={16}
-              color={saved ? _C.sage : _C.textMuted}
-              fill={saved ? _C.sage : "transparent"}
+              color={saved ? Colors.sage : Colors.charcoalMuted}
+              fill={saved ? Colors.sage : "transparent"}
             />
             <Text
               style={{
-                color: saved ? _C.sage : _C.textMuted,
+                color: saved ? Colors.sage : Colors.charcoalMuted,
                 fontSize: 14,
                 fontWeight: "500",
                 marginLeft: 6,
@@ -340,10 +337,10 @@ const GuidanceResult = ({
         {/* New reflection */}
         <Pressable onPress={onReset}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <RefreshCw size={16} color={_C.textMuted} />
+            <RefreshCw size={16} color={Colors.charcoalMuted} />
             <Text
               style={{
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontSize: 14,
                 fontWeight: "500",
                 marginLeft: 6,
@@ -389,7 +386,7 @@ const ErrorBanner = ({
       onPress={onDismiss}
       style={{ marginTop: 8, alignItems: "center" }}
     >
-      <Text style={{ color: _C.sage, fontSize: 13, fontWeight: "600" }}>
+      <Text style={{ color: Colors.sage, fontSize: 13, fontWeight: "600" }}>
         Dismiss
       </Text>
     </Pressable>
@@ -399,8 +396,6 @@ const ErrorBanner = ({
 /* ── Main screen ───────────────────────────────── */
 
 export default function HomeScreen() {
-  const C = useColors();
-  _C = C;
   const navigation = useNavigation<any>();
   const { user } = useAuth();
   const { isPremium, canReflect, reflectionsLeft, incrementReflection } =
@@ -507,15 +502,15 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       {guidance ? (
         <ScreenHeader>
           <Pressable onPress={handleReset} hitSlop={12}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <ChevronLeft size={22} color={_C.sage} />
-              <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
+              <ChevronLeft size={22} color={Colors.sage} />
+              <Text style={{ color: Colors.sage, fontSize: 15, marginLeft: 2 }}>
                 New Reflection
               </Text>
             </View>
@@ -555,7 +550,7 @@ export default function HomeScreen() {
                 <DiamondAccent />
                 <Text
                   style={{
-                    color: _C.text,
+                    color: Colors.charcoal,
                     fontSize: 30,
                     marginBottom: 12,
                     textAlign: "center",
@@ -567,7 +562,7 @@ export default function HomeScreen() {
                 </Text>
                 <Text
                   style={{
-                    color: _C.textMuted,
+                    color: Colors.charcoalMuted,
                     fontSize: 16,
                     textAlign: "center",
                     lineHeight: 24,
@@ -582,18 +577,18 @@ export default function HomeScreen() {
               {/* Input area */}
               <View
                 style={{
-                  backgroundColor: _C.surface,
+                  backgroundColor: "white",
                   borderRadius: 24,
                   padding: 20,
                   borderWidth: 1,
-                  borderColor: _C.sageFaint,
+                  borderColor: "rgba(135,169,107,0.08)",
                   minHeight: 120,
                 }}
               >
                 <TextInput
                   style={{
                     flex: 1,
-                    color: _C.text,
+                    color: Colors.charcoal,
                     fontSize: 16,
                     fontFamily:
                       Platform.OS === "ios" ? "Georgia" : "serif",
@@ -602,7 +597,7 @@ export default function HomeScreen() {
                     lineHeight: 24,
                   }}
                   placeholder="I feel..."
-                  placeholderTextColor={_C.textMuted}
+                  placeholderTextColor={Colors.charcoalMuted}
                   multiline
                   value={input}
                   onChangeText={setInput}
@@ -611,7 +606,7 @@ export default function HomeScreen() {
                 <Text
                   style={{
                     textAlign: "right",
-                    color: _C.textMuted,
+                    color: Colors.charcoalMuted,
                     fontSize: 12,
                     marginTop: 8,
                   }}
@@ -631,7 +626,7 @@ export default function HomeScreen() {
                   <Text
                     style={{
                       fontSize: 12,
-                      color: _C.textMuted,
+                      color: Colors.charcoalMuted,
                       fontStyle: "italic",
                     }}
                   >
@@ -642,7 +637,7 @@ export default function HomeScreen() {
                     style={{
                       fontSize: 12,
                       color: canReflect
-                        ? _C.textMuted
+                        ? Colors.charcoalMuted
                         : "#b44",
                       fontStyle: "italic",
                     }}
@@ -669,10 +664,10 @@ export default function HomeScreen() {
                       paddingHorizontal: 40,
                       borderRadius: 16,
                       borderWidth: 1.5,
-                      borderColor: _C.sage,
+                      borderColor: Colors.sage,
                       backgroundColor:
                         !user || !canReflect
-                          ? _C.sage
+                          ? Colors.sage
                           : "transparent",
                       opacity:
                         user && canReflect && !input.trim() ? 0.4 : 1,
@@ -681,7 +676,7 @@ export default function HomeScreen() {
                     {loading ? (
                       <ActivityIndicator
                         size="small"
-                        color={!user || !canReflect ? "white" : _C.sage}
+                        color={!user || !canReflect ? "white" : Colors.sage}
                       />
                     ) : !user ? (
                       <>
@@ -713,10 +708,10 @@ export default function HomeScreen() {
                       </>
                     ) : (
                       <>
-                        <Send size={18} color={_C.sage} />
+                        <Send size={18} color={Colors.sage} />
                         <Text
                           style={{
-                            color: _C.sage,
+                            color: Colors.sage,
                             fontSize: 16,
                             fontWeight: "600",
                             marginLeft: 8,

@@ -20,7 +20,7 @@ import {
   Scroll,
   HandHeart,
 } from "lucide-react-native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
 import {
@@ -31,9 +31,6 @@ import {
   DailyDua,
 } from "../lib/intelligence";
 import { DailyContentType } from "./ExploreScreen";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Config per content type ───────────────────── */
 
@@ -130,11 +127,11 @@ const ContentSection = ({
 const Card = ({ children }: { children: React.ReactNode }) => (
   <View
     style={{
-      backgroundColor: _C.surface,
+      backgroundColor: "white",
       borderRadius: 20,
       padding: 20,
       borderWidth: 1,
-      borderColor: _C.sageFaint,
+      borderColor: "rgba(135,169,107,0.08)",
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.03,
@@ -159,7 +156,7 @@ const SectionLabel = ({
     style={{
       fontSize: 12,
       fontWeight: "700",
-      color: color || _C.sage,
+      color: color || Colors.sage,
       letterSpacing: 1.2,
       textTransform: "uppercase",
       marginBottom: 10,
@@ -175,7 +172,7 @@ const ArabicText = ({ text }: { text: string }) => (
   <Text
     style={{
       fontSize: 22,
-      color: _C.text,
+      color: Colors.charcoal,
       textAlign: "right",
       fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
       lineHeight: 38,
@@ -198,7 +195,7 @@ const BodyText = ({
   <Text
     style={{
       fontSize: 15,
-      color: _C.text,
+      color: Colors.charcoal,
       lineHeight: 26,
       fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
       fontStyle: italic ? "italic" : "normal",
@@ -213,7 +210,7 @@ const BodyText = ({
 const SourceTag = ({ text }: { text: string }) => (
   <View
     style={{
-      backgroundColor: _C.sageFaint,
+      backgroundColor: "rgba(135,169,107,0.08)",
       borderRadius: 8,
       paddingVertical: 5,
       paddingHorizontal: 10,
@@ -225,7 +222,7 @@ const SourceTag = ({ text }: { text: string }) => (
       style={{
         fontSize: 12,
         fontWeight: "600",
-        color: _C.sage,
+        color: Colors.sage,
       }}
     >
       {text}
@@ -246,7 +243,7 @@ const HadithContent = ({ data }: { data: DailyHadith }) => (
         <View
           style={{
             height: 1,
-            backgroundColor: _C.border,
+            backgroundColor: "rgba(135,169,107,0.12)",
             marginVertical: 12,
           }}
         />
@@ -312,7 +309,7 @@ const StoryContent = ({ data }: { data: DailyStory }) => (
           style={{
             fontSize: 20,
             fontWeight: "700",
-            color: _C.text,
+            color: Colors.charcoal,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             marginBottom: 14,
           }}
@@ -357,7 +354,7 @@ const DuaContent = ({ data }: { data: DailyDua }) => (
           <Text
             style={{
               fontSize: 15,
-              color: _C.text,
+              color: Colors.charcoal,
               lineHeight: 24,
               fontStyle: "italic",
             }}
@@ -404,8 +401,6 @@ export default function DailyContentScreen({
   route: { params: { type: DailyContentType; date?: string } };
   navigation: any;
 }) {
-  const C = useColors();
-  _C = C;
   const { type, date } = route.params;
   const dateStr = date || getTodayStr();
   const isViewingToday = dateStr === getTodayStr();
@@ -531,7 +526,7 @@ export default function DailyContentScreen({
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       {/* Top bar */}
@@ -575,7 +570,7 @@ export default function DailyContentScreen({
               padding: 4,
             })}
           >
-            <RefreshCw size={18} color={_C.textMuted} />
+            <RefreshCw size={18} color={Colors.charcoalMuted} />
           </Pressable>
         )}
       </View>
@@ -613,7 +608,7 @@ export default function DailyContentScreen({
           <Text
             style={{
               fontSize: 24,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               textAlign: "center",
               marginBottom: 4,
@@ -624,7 +619,7 @@ export default function DailyContentScreen({
           <Text
             style={{
               fontSize: 13,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
             }}
           >
             {formatDateDisplay(dateStr)}
@@ -671,7 +666,7 @@ export default function DailyContentScreen({
             <ActivityIndicator size="large" color={config.accentColor} />
             <Text
               style={{
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontSize: 14,
                 marginTop: 16,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -688,7 +683,7 @@ export default function DailyContentScreen({
           <View style={{ alignItems: "center", marginTop: 40 }}>
             <Text
               style={{
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontSize: 14,
                 textAlign: "center",
                 lineHeight: 22,
@@ -753,21 +748,21 @@ export default function DailyContentScreen({
                   borderRadius: 14,
                   borderWidth: 1.5,
                   borderColor: bookmarked
-                    ? _C.sage
+                    ? Colors.sage
                     : config.accentColor,
                   backgroundColor: bookmarked
-                    ? _C.sageFaint
+                    ? "rgba(135,169,107,0.08)"
                     : "transparent",
                 }}
               >
                 <Bookmark
                   size={16}
-                  color={bookmarked ? _C.sage : config.accentColor}
-                  fill={bookmarked ? _C.sage : "transparent"}
+                  color={bookmarked ? Colors.sage : config.accentColor}
+                  fill={bookmarked ? Colors.sage : "transparent"}
                 />
                 <Text
                   style={{
-                    color: bookmarked ? _C.sage : config.accentColor,
+                    color: bookmarked ? Colors.sage : config.accentColor,
                     fontSize: 14,
                     fontWeight: "600",
                     marginLeft: 8,

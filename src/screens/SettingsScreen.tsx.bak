@@ -48,15 +48,12 @@ import {
   KeyRound,
   Fingerprint,
 } from "lucide-react-native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { usePremium, FREE_REFLECTIONS_PER_MONTH } from "../lib/PremiumContext";
 import { useTheme } from "../lib/ThemeContext";
 import { supabase } from "../lib/supabase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Constants ─────────────────────────────────────────────────────────────
  * TODO: Fill in all values below before shipping.
@@ -96,7 +93,7 @@ const SectionHeader = ({ title }: { title: string }) => (
     style={{
       fontSize: 11,
       fontWeight: "700",
-      color: _C.textMuted,
+      color: Colors.charcoalMuted,
       letterSpacing: 1.2,
       textTransform: "uppercase",
       marginTop: 28,
@@ -150,7 +147,7 @@ const SettingsRow = ({
         alignItems: "center",
         paddingVertical: 13,
         paddingHorizontal: 16,
-        backgroundColor: _C.surface,
+        backgroundColor: "white",
       }}
     >
       <View
@@ -159,8 +156,8 @@ const SettingsRow = ({
           height: 34,
           borderRadius: 10,
           backgroundColor: destructive
-            ? _C.errorFaint
-            : _C.sageFaint,
+            ? "rgba(180,68,68,0.08)"
+            : "rgba(135,169,107,0.08)",
           alignItems: "center",
           justifyContent: "center",
           marginRight: 14,
@@ -173,7 +170,7 @@ const SettingsRow = ({
           style={{
             fontSize: 15,
             fontWeight: "500",
-            color: destructive ? "#b44" : _C.text,
+            color: destructive ? "#b44" : Colors.charcoal,
           }}
         >
           {label}
@@ -182,7 +179,7 @@ const SettingsRow = ({
           <Text
             style={{
               fontSize: 12,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
               marginTop: 2,
             }}
           >
@@ -193,7 +190,7 @@ const SettingsRow = ({
       {rightElement ? (
         rightElement
       ) : showArrow && onPress ? (
-        <ChevronRight size={17} color={_C.textMuted} />
+        <ChevronRight size={17} color={Colors.charcoalMuted} />
       ) : null}
     </View>
   </Pressable>
@@ -203,11 +200,11 @@ const SettingsRow = ({
 const SettingsCard = ({ children }: { children: React.ReactNode }) => (
   <View
     style={{
-      backgroundColor: _C.surface,
+      backgroundColor: "white",
       borderRadius: 16,
       overflow: "hidden",
       borderWidth: 1,
-      borderColor: _C.sageFaint,
+      borderColor: "rgba(135,169,107,0.08)",
     }}
   >
     {children}
@@ -221,8 +218,6 @@ export default function SettingsScreen({
 }: {
   navigation: any;
 }) {
-  const C = useColors();
-  _C = C;
   const { user, signOut } = useAuth();
   const { isPremium, reflectionsUsed, reflectionsLeft } = usePremium();
   const { isDark, toggle: toggleDark } = useTheme();
@@ -536,7 +531,7 @@ export default function SettingsScreen({
   /* ── Render ────────────────────────────────── */
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: _C.background }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.cream }} edges={["top"]}>
       {/* Top bar */}
       <View
         style={{
@@ -555,8 +550,8 @@ export default function SettingsScreen({
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <ChevronLeft size={22} color={_C.sage} />
-          <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
+          <ChevronLeft size={22} color={Colors.sage} />
+          <Text style={{ color: Colors.sage, fontSize: 15, marginLeft: 2 }}>
             Back
           </Text>
         </Pressable>
@@ -566,7 +561,7 @@ export default function SettingsScreen({
             textAlign: "center",
             fontSize: 17,
             fontWeight: "600",
-            color: _C.text,
+            color: Colors.charcoal,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             marginRight: 40,
           }}
@@ -591,13 +586,13 @@ export default function SettingsScreen({
               width: 72,
               height: 72,
               borderRadius: 24,
-              backgroundColor: _C.sageFaintMid,
+              backgroundColor: "rgba(135,169,107,0.15)",
               alignItems: "center",
               justifyContent: "center",
               marginBottom: 14,
             }}
           >
-            <Text style={{ fontSize: 26, fontWeight: "700", color: _C.sage }}>
+            <Text style={{ fontSize: 26, fontWeight: "700", color: Colors.sage }}>
               {initials}
             </Text>
           </View>
@@ -608,14 +603,14 @@ export default function SettingsScreen({
                 value={displayName}
                 onChangeText={setDisplayName}
                 placeholder="Your name"
-                placeholderTextColor={_C.textMuted}
+                placeholderTextColor={Colors.charcoalMuted}
                 autoFocus
                 style={{
                   fontSize: 18,
                   fontWeight: "600",
-                  color: _C.text,
+                  color: Colors.charcoal,
                   borderBottomWidth: 1.5,
-                  borderBottomColor: _C.sage,
+                  borderBottomColor: Colors.sage,
                   paddingVertical: 4,
                   paddingHorizontal: 8,
                   minWidth: 150,
@@ -625,7 +620,7 @@ export default function SettingsScreen({
               <Pressable onPress={handleSaveName} disabled={saving}>
                 <View
                   style={{
-                    backgroundColor: _C.sage,
+                    backgroundColor: Colors.sage,
                     borderRadius: 8,
                     paddingVertical: 6,
                     paddingHorizontal: 14,
@@ -643,7 +638,7 @@ export default function SettingsScreen({
               <Pressable
                 onPress={() => { setIsEditingName(false); loadProfile(); }}
               >
-                <Text style={{ fontSize: 13, color: _C.textMuted }}>
+                <Text style={{ fontSize: 13, color: Colors.charcoalMuted }}>
                   Cancel
                 </Text>
               </Pressable>
@@ -654,7 +649,7 @@ export default function SettingsScreen({
                 style={{
                   fontSize: 20,
                   fontWeight: "700",
-                  color: _C.text,
+                  color: Colors.charcoal,
                   fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 }}
               >
@@ -663,7 +658,7 @@ export default function SettingsScreen({
             </Pressable>
           )}
 
-          <Text style={{ fontSize: 13, color: _C.textMuted, marginTop: 6 }}>
+          <Text style={{ fontSize: 13, color: Colors.charcoalMuted, marginTop: 6 }}>
             {user?.email}
           </Text>
         </View>
@@ -673,23 +668,23 @@ export default function SettingsScreen({
         <Pressable onPress={handleManageSubscription}>
           <View
             style={{
-              backgroundColor: isPremium ? _C.sageFaint : "white",
+              backgroundColor: isPremium ? "rgba(135,169,107,0.08)" : "white",
               borderRadius: 16,
               padding: 18,
               borderWidth: isPremium ? 1.5 : 1,
-              borderColor: isPremium ? _C.sage : _C.sageFaint,
+              borderColor: isPremium ? Colors.sage : "rgba(135,169,107,0.08)",
             }}
           >
             <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}>
               <Crown
                 size={18}
-                color={isPremium ? _C.sage : _C.textMuted}
+                color={isPremium ? Colors.sage : Colors.charcoalMuted}
               />
               <Text
                 style={{
                   fontSize: 16,
                   fontWeight: "700",
-                  color: _C.text,
+                  color: Colors.charcoal,
                   marginLeft: 10,
                 }}
               >
@@ -697,22 +692,22 @@ export default function SettingsScreen({
               </Text>
               <ChevronRight
                 size={16}
-                color={_C.textMuted}
+                color={Colors.charcoalMuted}
                 style={{ marginLeft: "auto" }}
               />
             </View>
             {isPremium ? (
-              <Text style={{ fontSize: 13, color: _C.sage, lineHeight: 20 }}>
+              <Text style={{ fontSize: 13, color: Colors.sage, lineHeight: 20 }}>
                 You have unlimited access to all features.{"\n"}
                 Tap to manage your subscription.
               </Text>
             ) : (
               <>
-                <Text style={{ fontSize: 13, color: _C.textMuted, lineHeight: 20, marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, color: Colors.charcoalMuted, lineHeight: 20, marginBottom: 6 }}>
                   {reflectionsLeft} of {FREE_REFLECTIONS_PER_MONTH} free Sanctuary
                   reflections remaining this month.
                 </Text>
-                <Text style={{ fontSize: 13, color: _C.sage, fontWeight: "600" }}>
+                <Text style={{ fontSize: 13, color: Colors.sage, fontWeight: "600" }}>
                   Upgrade to Premium →
                 </Text>
               </>
@@ -724,14 +719,14 @@ export default function SettingsScreen({
         <SectionHeader title="Appearance" />
         <SettingsCard>
           <SettingsRow
-            icon={<Moon size={17} color={_C.sage} />}
+            icon={<Moon size={17} color={Colors.sage} />}
             label="Dark Mode"
             value={isDark ? "On" : "Off"}
             rightElement={
               <Switch
                 value={isDark}
                 onValueChange={toggleDark}
-                trackColor={{ false: _C.borderStrong, true: _C.sage }}
+                trackColor={{ false: "rgba(135,169,107,0.2)", true: Colors.sage }}
                 thumbColor="white"
               />
             }
@@ -742,7 +737,7 @@ export default function SettingsScreen({
         <SectionHeader title="Notifications" />
         <SettingsCard>
           <SettingsRow
-            icon={<Bell size={17} color={_C.sage} />}
+            icon={<Bell size={17} color={Colors.sage} />}
             label="Daily Reminder"
             value={
               dailyReminder
@@ -753,7 +748,7 @@ export default function SettingsScreen({
               <Switch
                 value={dailyReminder}
                 onValueChange={handleToggleReminder}
-                trackColor={{ false: _C.borderStrong, true: _C.sage }}
+                trackColor={{ false: "rgba(135,169,107,0.2)", true: Colors.sage }}
                 thumbColor="white"
               />
             }
@@ -764,7 +759,7 @@ export default function SettingsScreen({
         <SectionHeader title="Privacy & Security" />
         <SettingsCard>
           <SettingsRow
-            icon={<KeyRound size={17} color={_C.sage} />}
+            icon={<KeyRound size={17} color={Colors.sage} />}
             label="Change Password"
             value="Send a reset link to your email"
             onPress={handleChangePassword}
@@ -772,7 +767,7 @@ export default function SettingsScreen({
           />
           <Divider />
           <SettingsRow
-            icon={<Shield size={17} color={_C.sage} />}
+            icon={<Shield size={17} color={Colors.sage} />}
             label="Privacy"
             value="Your journal entries are encrypted on-device"
           />
@@ -784,9 +779,9 @@ export default function SettingsScreen({
           <SettingsRow
             icon={
               exportingData ? (
-                <ActivityIndicator size="small" color={_C.sage} />
+                <ActivityIndicator size="small" color={Colors.sage} />
               ) : (
-                <Download size={17} color={_C.sage} />
+                <Download size={17} color={Colors.sage} />
               )
             }
             label="Export My Data"
@@ -796,7 +791,7 @@ export default function SettingsScreen({
           />
           <Divider />
           <SettingsRow
-            icon={<Trash2 size={17} color={_C.textMuted} />}
+            icon={<Trash2 size={17} color={Colors.charcoalMuted} />}
             label="Clear Cache"
             value="Free up local storage"
             onPress={() => {
@@ -830,7 +825,7 @@ export default function SettingsScreen({
         <SectionHeader title="Support" />
         <SettingsCard>
           <SettingsRow
-            icon={<Star size={17} color={_C.sage} />}
+            icon={<Star size={17} color={Colors.sage} />}
             label="Rate Al-Sakina"
             value="Enjoying the app? Leave a review"
             onPress={handleRateApp}
@@ -838,7 +833,7 @@ export default function SettingsScreen({
           />
           <Divider />
           <SettingsRow
-            icon={<MessageSquare size={17} color={_C.sage} />}
+            icon={<MessageSquare size={17} color={Colors.sage} />}
             label="Send Feedback"
             value="Help us improve"
             onPress={handleSendFeedback}
@@ -846,7 +841,7 @@ export default function SettingsScreen({
           />
           <Divider />
           <SettingsRow
-            icon={<HelpCircle size={17} color={_C.sage} />}
+            icon={<HelpCircle size={17} color={Colors.sage} />}
             label="Help Center"
             onPress={() => Linking.openURL(HELP_CENTER_URL)}
             showArrow
@@ -857,14 +852,14 @@ export default function SettingsScreen({
         <SectionHeader title="Legal" />
         <SettingsCard>
           <SettingsRow
-            icon={<FileText size={17} color={_C.textMuted} />}
+            icon={<FileText size={17} color={Colors.charcoalMuted} />}
             label="Privacy Policy"
             onPress={() => Linking.openURL(PRIVACY_URL)}
             showArrow
           />
           <Divider />
           <SettingsRow
-            icon={<FileText size={17} color={_C.textMuted} />}
+            icon={<FileText size={17} color={Colors.charcoalMuted} />}
             label="Terms of Service"
             onPress={() => Linking.openURL(TERMS_URL)}
             showArrow
@@ -875,7 +870,7 @@ export default function SettingsScreen({
         <SectionHeader title="Account" />
         <SettingsCard>
           <SettingsRow
-            icon={<User size={17} color={_C.sage} />}
+            icon={<User size={17} color={Colors.sage} />}
             label="Display Name"
             value={displayName || "Not set"}
             onPress={() => setIsEditingName(true)}
@@ -883,7 +878,7 @@ export default function SettingsScreen({
           />
           <Divider />
           <SettingsRow
-            icon={<Mail size={17} color={_C.sage} />}
+            icon={<Mail size={17} color={Colors.sage} />}
             label="Email Address"
             value={user?.email || ""}
             onPress={handleChangeEmail}
@@ -922,7 +917,7 @@ export default function SettingsScreen({
           <Text
             style={{
               fontSize: 12,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
               fontStyle: "italic",
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
             }}

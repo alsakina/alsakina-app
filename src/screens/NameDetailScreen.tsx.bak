@@ -13,12 +13,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeft, RefreshCw, BookOpen, Sparkles } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { fetchNameDetail, NameDetail } from "../lib/intelligence";
 import { NAME_DETAILS } from "../lib/nameDetailsData";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Types for route params ────────────────────── */
 
@@ -87,7 +84,7 @@ const Section = ({
           style={{
             fontSize: 13,
             fontWeight: "700",
-            color: _C.sage,
+            color: Colors.sage,
             letterSpacing: 1.5,
             textTransform: "uppercase",
             marginLeft: icon ? 8 : 0,
@@ -100,11 +97,11 @@ const Section = ({
       {/* Section body */}
       <View
         style={{
-          backgroundColor: _C.surface,
+          backgroundColor: "white",
           borderRadius: 20,
           padding: 20,
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: "rgba(135,169,107,0.08)",
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.03,
@@ -143,7 +140,7 @@ const VerseCard = ({
       <Text
         style={{
           fontSize: 20,
-          color: _C.text,
+          color: Colors.charcoal,
           textAlign: "right",
           fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
           lineHeight: 34,
@@ -156,7 +153,7 @@ const VerseCard = ({
     <Text
       style={{
         fontSize: 14,
-        color: _C.text,
+        color: Colors.charcoal,
         fontStyle: "italic",
         lineHeight: 22,
         fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
@@ -167,7 +164,7 @@ const VerseCard = ({
     <Text
       style={{
         fontSize: 12,
-        color: _C.sage,
+        color: Colors.sage,
         fontWeight: "600",
         marginTop: 8,
       }}
@@ -186,7 +183,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
       <Text
         style={{
           fontSize: 15,
-          color: _C.text,
+          color: Colors.charcoal,
           lineHeight: 26,
           fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
         }}
@@ -199,7 +196,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
     {detail.quranicVerses.length > 0 && (
       <Section
         title="In the Quran"
-        icon={<BookOpen size={15} color={_C.sage} />}
+        icon={<BookOpen size={15} color={Colors.sage} />}
         index={1}
       >
         {detail.quranicVerses.map((verse, i) => (
@@ -228,7 +225,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
               style={{
                 fontSize: 15,
                 fontWeight: "700",
-                color: _C.text,
+                color: Colors.charcoal,
                 marginBottom: 6,
               }}
             >
@@ -237,7 +234,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
             <Text
               style={{
                 fontSize: 14,
-                color: _C.text,
+                color: Colors.charcoal,
                 lineHeight: 24,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               }}
@@ -254,7 +251,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
       <Text
         style={{
           fontSize: 14,
-          color: _C.text,
+          color: Colors.charcoal,
           lineHeight: 24,
           fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
         }}
@@ -270,7 +267,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
           <Text
             style={{
               fontSize: 20,
-              color: _C.text,
+              color: Colors.charcoal,
               textAlign: "center",
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               lineHeight: 34,
@@ -283,7 +280,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
         <Text
           style={{
             fontSize: 14,
-            color: _C.text,
+            color: Colors.charcoal,
             fontStyle: "italic",
             textAlign: "center",
             lineHeight: 22,
@@ -296,7 +293,7 @@ const DetailContent = ({ detail }: { detail: NameDetail }) => (
           <Text
             style={{
               fontSize: 12,
-              color: _C.sage,
+              color: Colors.sage,
               fontWeight: "600",
               textAlign: "center",
               marginTop: 8,
@@ -319,8 +316,6 @@ export default function NameDetailScreen({
   route: { params: RouteParams };
   navigation: any;
 }) {
-  const C = useColors();
-  _C = C;
   const { id, arabic, transliteration, meaning } = route.params;
   const [detail, setDetail] = useState<NameDetail | null>(null);
   const [regenerating, setRegenerating] = useState(false);
@@ -393,7 +388,7 @@ export default function NameDetailScreen({
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       {/* Top bar */}
@@ -414,8 +409,8 @@ export default function NameDetailScreen({
             opacity: pressed ? 0.6 : 1,
           })}
         >
-          <ChevronLeft size={22} color={_C.sage} />
-          <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
+          <ChevronLeft size={22} color={Colors.sage} />
+          <Text style={{ color: Colors.sage, fontSize: 15, marginLeft: 2 }}>
             Back
           </Text>
         </Pressable>
@@ -454,7 +449,7 @@ export default function NameDetailScreen({
                 width: 30,
                 height: 30,
                 borderRadius: 6,
-                backgroundColor: _C.border,
+                backgroundColor: "rgba(135,169,107,0.12)",
                 transform: [{ rotate: "45deg" }],
               }}
             />
@@ -462,7 +457,7 @@ export default function NameDetailScreen({
               style={{
                 fontSize: 13,
                 fontWeight: "700",
-                color: _C.sage,
+                color: Colors.sage,
               }}
             >
               {id}
@@ -472,7 +467,7 @@ export default function NameDetailScreen({
           <Text
             style={{
               fontSize: 42,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               marginBottom: 6,
               textAlign: "center",
@@ -484,7 +479,7 @@ export default function NameDetailScreen({
             style={{
               fontSize: 20,
               fontWeight: "600",
-              color: _C.sage,
+              color: Colors.sage,
               marginBottom: 4,
             }}
           >
@@ -493,7 +488,7 @@ export default function NameDetailScreen({
           <Text
             style={{
               fontSize: 15,
-              color: _C.textMuted,
+              color: Colors.charcoalMuted,
             }}
           >
             {meaning}
@@ -513,7 +508,7 @@ export default function NameDetailScreen({
               style={{
                 width: 40,
                 height: 1,
-                backgroundColor: _C.borderStrong,
+                backgroundColor: "rgba(135,169,107,0.2)",
               }}
             />
             <View
@@ -528,7 +523,7 @@ export default function NameDetailScreen({
               style={{
                 width: 40,
                 height: 1,
-                backgroundColor: _C.borderStrong,
+                backgroundColor: "rgba(135,169,107,0.2)",
               }}
             />
           </View>
@@ -561,19 +556,19 @@ export default function NameDetailScreen({
                   paddingHorizontal: 28,
                   borderRadius: 16,
                   borderWidth: 1.5,
-                  borderColor: _C.sage,
+                  borderColor: Colors.sage,
                   backgroundColor: "transparent",
                   opacity: regenerating ? 0.5 : pressed ? 0.7 : 1,
                 })}
               >
                 {regenerating ? (
-                  <ActivityIndicator size="small" color={_C.sage} />
+                  <ActivityIndicator size="small" color={Colors.sage} />
                 ) : (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Sparkles size={16} color={_C.sage} />
+                    <Sparkles size={16} color={Colors.sage} />
                     <Text
                       style={{
-                        color: _C.sage,
+                        color: Colors.sage,
                         fontSize: 14,
                         fontWeight: "600",
                         marginLeft: 8,
@@ -597,10 +592,10 @@ export default function NameDetailScreen({
                     opacity: pressed ? 0.5 : 1,
                   })}
                 >
-                  <RefreshCw size={14} color={_C.textMuted} />
+                  <RefreshCw size={14} color={Colors.charcoalMuted} />
                   <Text
                     style={{
-                      color: _C.textMuted,
+                      color: Colors.charcoalMuted,
                       fontSize: 13,
                       marginLeft: 6,
                     }}
@@ -616,7 +611,7 @@ export default function NameDetailScreen({
           <View style={{ alignItems: "center", marginTop: 40 }}>
             <Text
               style={{
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontSize: 14,
                 textAlign: "center",
                 lineHeight: 22,
@@ -635,17 +630,17 @@ export default function NameDetailScreen({
                 paddingHorizontal: 24,
                 borderRadius: 14,
                 borderWidth: 1.5,
-                borderColor: _C.sage,
+                borderColor: Colors.sage,
               }}
             >
               {regenerating ? (
-                <ActivityIndicator size="small" color={_C.sage} />
+                <ActivityIndicator size="small" color={Colors.sage} />
               ) : (
                 <>
-                  <Sparkles size={16} color={_C.sage} />
+                  <Sparkles size={16} color={Colors.sage} />
                   <Text
                     style={{
-                      color: _C.sage,
+                      color: Colors.sage,
                       fontSize: 14,
                       fontWeight: "600",
                       marginLeft: 8,
