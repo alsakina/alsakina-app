@@ -536,18 +536,19 @@ export default function SettingsScreen({
           paddingVertical: 12,
         }}
       >
+        {/* Back button — fixed width so title can truly center */}
         <Pressable
           onPress={() => navigation.goBack()}
           hitSlop={12}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: pressed ? 0.6 : 1,
-          })}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, width: 70 })}
         >
-          <ChevronLeft size={22} color={_C.sage} />
-          <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>Back</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <ChevronLeft size={22} color={_C.sage} />
+            <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>Back</Text>
+          </View>
         </Pressable>
+
+        {/* Centered title */}
         <Text
           style={{
             flex: 1,
@@ -556,11 +557,13 @@ export default function SettingsScreen({
             fontWeight: "600",
             color: _C.text,
             fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
-            marginRight: 40,
           }}
         >
           Settings
         </Text>
+
+        {/* Spacer to balance back button and keep title truly centered */}
+        <View style={{ width: 50 }} />
       </View>
 
       <ScrollView
@@ -898,14 +901,14 @@ export default function SettingsScreen({
           <SettingsRow
             icon={<FileText size={17} color={_C.textMuted} />}
             label="Privacy Policy"
-            onPress={() => Linking.openURL(PRIVACY_URL)}
+            onPress={() => navigation.navigate("LegalDocumentScreen", { type: "privacy" })}
             showArrow
           />
           <Divider />
           <SettingsRow
             icon={<FileText size={17} color={_C.textMuted} />}
             label="Terms of Service"
-            onPress={() => Linking.openURL(TERMS_URL)}
+            onPress={() => navigation.navigate("LegalDocumentScreen", { type: "terms" })}
             showArrow
           />
         </SettingsCard>

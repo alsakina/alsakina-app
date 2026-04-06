@@ -1,52 +1,45 @@
 // lib/intelligence.ts
 // ─────────────────────────────────────────────────
 // All Anthropic API calls for the app.
-// For now (single-user), calls Anthropic directly.
-// When going public, swap for a backend proxy.
+// Calls go through a Supabase Edge Function proxy
+// so the Anthropic API key never lives in the bundle.
 // ─────────────────────────────────────────────────
-
+ 
 import { supabase } from "./supabase";
-
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
-const ANTHROPIC_API_KEY = process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
+ 
 const MODEL = "claude-sonnet-4-20250514";
-
+ 
 /* ══════════════════════════════════════════════════
    Shared helpers
    ══════════════════════════════════════════════════ */
-
+ 
 async function callClaude(
   system: string,
   userMessage: string,
   maxTokens = 1024
 ): Promise<string> {
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": ANTHROPIC_API_KEY!,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke("claude-proxy", {
+    body: {
       model: MODEL,
       max_tokens: maxTokens,
       system,
       messages: [{ role: "user", content: userMessage }],
-    }),
+    },
   });
-
-  if (!response.ok) {
-    const errBody = await response.text();
-    throw new Error(`Anthropic API error ${response.status}: ${errBody}`);
+ 
+  if (error) {
+    // Extract the real message if available
+    const msg = (error as any)?.context?.json?.error
+      ?? (error as any)?.message
+      ?? String(error);
+    throw new Error(`Claude proxy error: ${msg}`);
   }
-
-  const data = await response.json();
-
-  const text = data.content
-    .filter((block: any) => block.type === "text")
-    .map((block: any) => block.text)
+ 
+  const text = (data.content as any[])
+    .filter((b: any) => b.type === "text")
+    .map((b: any) => b.text)
     .join("");
-
+ 
   return text.replace(/```json|```/g, "").trim();
 }
 
