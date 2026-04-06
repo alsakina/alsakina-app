@@ -25,6 +25,8 @@ import {
   Switch,
   Platform,
   Linking,
+  Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker, {
@@ -49,6 +51,9 @@ import {
   FileText,
   AlertTriangle,
   KeyRound,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react-native";
 import { useColors, LightColors } from "../lib/ThemeContext";
 import { useTheme } from "../lib/ThemeContext";
@@ -239,6 +244,16 @@ export default function SettingsScreen({
   const [deletingAccount, setDeletingAccount]   = useState(false);
   const [exportingData, setExportingData]       = useState(false);
 
+  // Change password modal
+  const [showPasswordModal, setShowPasswordModal]   = useState(false);
+  const [currentPassword, setCurrentPassword]       = useState("");
+  const [newPassword, setNewPassword]               = useState("");
+  const [confirmPassword, setConfirmPassword]       = useState("");
+  const [showCurrentPw, setShowCurrentPw]           = useState(false);
+  const [showNewPw, setShowNewPw]                   = useState(false);
+  const [showConfirmPw, setShowConfirmPw]           = useState(false);
+  const [savingPassword, setSavingPassword]         = useState(false);
+
   /* ── Load on mount ─────────────────────────── */
 
   useEffect(() => {
@@ -362,29 +377,60 @@ export default function SettingsScreen({
   };
 
   const handleChangePassword = () => {
-    Alert.alert(
-      "Reset Password",
-      "We'll send a password reset link to " + (user?.email || "your email."),
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Send Link",
-          onPress: async () => {
-            if (!user?.email) return;
-            try {
-              const { error } = await supabase.auth.resetPasswordForEmail(
-                user.email,
-                { redirectTo: "alsakina://reset-password" }
-              );
-              if (error) throw error;
-              Alert.alert("Sent!", "Check your inbox for the reset link.");
-            } catch (err: any) {
-              Alert.alert("Error", err.message || "Could not send reset email.");
-            }
-          },
-        },
-      ]
-    );
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setShowCurrentPw(false);
+    setShowNewPw(false);
+    setShowConfirmPw(false);
+    setShowPasswordModal(true);
+  };
+
+  const handleSavePassword = async () => {
+    if (!user?.email) return;
+
+    if (!currentPassword.trim()) {
+      Alert.alert("Required", "Please enter your current password.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert("Too short", "New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("Mismatch", "New passwords do not match.");
+      return;
+    }
+    if (currentPassword === newPassword) {
+      Alert.alert("Same password", "Your new password must be different from your current one.");
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      // Re-authenticate with current password first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) {
+        Alert.alert("Incorrect password", "Your current password is incorrect.");
+        return;
+      }
+
+      // Update to the new password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      if (updateError) throw updateError;
+
+      setShowPasswordModal(false);
+      Alert.alert("Password updated", "Your password has been changed successfully.");
+    } catch (err: any) {
+      Alert.alert("Error", err.message || "Could not update password. Please try again.");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
   const handleChangeEmail = () => {
@@ -702,6 +748,7 @@ export default function SettingsScreen({
   /* ── Render ────────────────────────────────── */
 
   return (
+    <>
     <SafeAreaView style={{ flex: 1, backgroundColor: _C.background }} edges={["top"]}>
 
       {/* Top bar */}
@@ -991,7 +1038,7 @@ export default function SettingsScreen({
           <SettingsRow
             icon={<KeyRound size={17} color={_C.sage} />}
             label="Change Password"
-            value="Send a reset link to your email"
+            value="Change your account login password"
             onPress={handleChangePassword}
             showArrow
           />
@@ -1152,5 +1199,217 @@ export default function SettingsScreen({
         </View>
       </ScrollView>
     </SafeAreaView>
+
+      {/* ── Change Password Modal ───────────────── */}
+      <Modal
+        visible={showPasswordModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowPasswordModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: _C.background }} edges={["top"]}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            {/* Modal top bar */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+                borderBottomWidth: 1,
+                borderBottomColor: _C.border,
+              }}
+            >
+              <Pressable
+                onPress={() => setShowPasswordModal(false)}
+                hitSlop={12}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, width: 70 })}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
+                  <Text style={{ color: _C.sage, fontSize: 15 }}>Cancel</Text>
+                </View>
+              </Pressable>
+              <Text
+                style={{
+                  flex: 1,
+                  textAlign: "center",
+                  fontSize: 17,
+                  fontWeight: "600",
+                  color: _C.text,
+                  fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
+                }}
+              >
+                Change Password
+              </Text>
+              <Pressable
+                onPress={handleSavePassword}
+                disabled={savingPassword}
+                hitSlop={12}
+                style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, width: 70, alignItems: "flex-end" })}
+              >
+                {savingPassword
+                  ? <ActivityIndicator size="small" color={_C.sage} />
+                  : <Text style={{ color: _C.sage, fontSize: 15, fontWeight: "600" }}>Save</Text>
+                }
+              </Pressable>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={{ padding: 24 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Info note */}
+              <View
+                style={{
+                  backgroundColor: _C.sageFaint,
+                  borderRadius: 12,
+                  padding: 14,
+                  marginBottom: 28,
+                  flexDirection: "row",
+                  gap: 10,
+                  alignItems: "flex-start",
+                }}
+              >
+                <Lock size={16} color={_C.sage} style={{ marginTop: 1 }} />
+                <Text style={{ flex: 1, fontSize: 13, color: _C.textLight, lineHeight: 20 }}>
+                  For your security, enter your current password before setting a new one.
+                </Text>
+              </View>
+
+              {/* Current password */}
+              <Text style={{ fontSize: 13, fontWeight: "600", color: _C.textMuted, marginBottom: 8, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                Current Password
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: _C.surface,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: _C.border,
+                  paddingHorizontal: 14,
+                  marginBottom: 20,
+                }}
+              >
+                <TextInput
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="Enter current password"
+                  placeholderTextColor={_C.textMuted}
+                  secureTextEntry={!showCurrentPw}
+                  autoCapitalize="none"
+                  style={{ flex: 1, paddingVertical: 14, fontSize: 15, color: _C.text }}
+                />
+                <Pressable onPress={() => setShowCurrentPw(v => !v)} hitSlop={8}>
+                  {showCurrentPw
+                    ? <EyeOff size={18} color={_C.textMuted} />
+                    : <Eye size={18} color={_C.textMuted} />
+                  }
+                </Pressable>
+              </View>
+
+              {/* New password */}
+              <Text style={{ fontSize: 13, fontWeight: "600", color: _C.textMuted, marginBottom: 8, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                New Password
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: _C.surface,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: _C.border,
+                  paddingHorizontal: 14,
+                  marginBottom: 20,
+                }}
+              >
+                <TextInput
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="At least 6 characters"
+                  placeholderTextColor={_C.textMuted}
+                  secureTextEntry={!showNewPw}
+                  autoCapitalize="none"
+                  style={{ flex: 1, paddingVertical: 14, fontSize: 15, color: _C.text }}
+                />
+                <Pressable onPress={() => setShowNewPw(v => !v)} hitSlop={8}>
+                  {showNewPw
+                    ? <EyeOff size={18} color={_C.textMuted} />
+                    : <Eye size={18} color={_C.textMuted} />
+                  }
+                </Pressable>
+              </View>
+
+              {/* Confirm new password */}
+              <Text style={{ fontSize: 13, fontWeight: "600", color: _C.textMuted, marginBottom: 8, letterSpacing: 0.5, textTransform: "uppercase" }}>
+                Confirm New Password
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: _C.surface,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: confirmPassword.length > 0 && confirmPassword !== newPassword
+                    ? _C.error
+                    : _C.border,
+                  paddingHorizontal: 14,
+                  marginBottom: 8,
+                }}
+              >
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Re-enter new password"
+                  placeholderTextColor={_C.textMuted}
+                  secureTextEntry={!showConfirmPw}
+                  autoCapitalize="none"
+                  style={{ flex: 1, paddingVertical: 14, fontSize: 15, color: _C.text }}
+                />
+                <Pressable onPress={() => setShowConfirmPw(v => !v)} hitSlop={8}>
+                  {showConfirmPw
+                    ? <EyeOff size={18} color={_C.textMuted} />
+                    : <Eye size={18} color={_C.textMuted} />
+                  }
+                </Pressable>
+              </View>
+              {confirmPassword.length > 0 && confirmPassword !== newPassword && (
+                <Text style={{ fontSize: 12, color: _C.error, marginBottom: 20 }}>
+                  Passwords do not match
+                </Text>
+              )}
+
+              {/* Save button */}
+              <Pressable
+                onPress={handleSavePassword}
+                disabled={savingPassword}
+                style={({ pressed }) => ({ opacity: pressed || savingPassword ? 0.7 : 1, marginTop: 12 })}
+              >
+                <View
+                  style={{
+                    backgroundColor: _C.sage,
+                    borderRadius: 14,
+                    paddingVertical: 15,
+                    alignItems: "center",
+                  }}
+                >
+                  {savingPassword
+                    ? <ActivityIndicator color="white" />
+                    : <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>Update Password</Text>
+                  }
+                </View>
+              </Pressable>
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+    </>
   );
 }
