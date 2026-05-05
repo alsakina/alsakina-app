@@ -304,14 +304,18 @@ const NameOfTheDayCard = ({
 
 /* ── Single name row ───────────────────────────── */
 
+// Colors are passed as a prop so React.memo re-renders correctly
+// when the theme changes, rather than reading stale module-level _C.
 const NameRow = React.memo(
   ({
     item,
     index,
+    colors,
     onPress,
   }: {
     item: NameEntry;
     index: number;
+    colors: typeof LightColors;
     onPress: (item: NameEntry) => void;
   }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -335,9 +339,9 @@ const NameRow = React.memo(
           paddingVertical: 20,
           paddingLeft: 20,
           paddingRight: 24,
-          backgroundColor: _C.surface,
+          backgroundColor: colors.surface,
           borderWidth: 1,
-          borderColor: _C.sageFaint,
+          borderColor: colors.sageFaint,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 1 },
           shadowOpacity: 0.03,
@@ -369,7 +373,7 @@ const NameRow = React.memo(
                   width: 30,
                   height: 30,
                   borderRadius: 6,
-                  backgroundColor: _C.border,
+                  backgroundColor: colors.border,
                   transform: [{ rotate: "45deg" }],
                 }}
               />
@@ -377,7 +381,7 @@ const NameRow = React.memo(
                 style={{
                   fontSize: 13,
                   fontWeight: "700",
-                  color: _C.sage,
+                  color: colors.sage,
                 }}
               >
                 {item.id}
@@ -390,7 +394,7 @@ const NameRow = React.memo(
                 style={{
                   fontSize: 15,
                   fontWeight: "600",
-                  color: _C.sage,
+                  color: colors.sage,
                   marginBottom: 2,
                 }}
               >
@@ -399,7 +403,7 @@ const NameRow = React.memo(
               <Text
                 style={{
                   fontSize: 12,
-                  color: _C.textMuted,
+                  color: colors.textMuted,
                   lineHeight: 16,
                 }}
               >
@@ -411,7 +415,7 @@ const NameRow = React.memo(
             <Text
               style={{
                 fontSize: 20,
-                color: _C.text,
+                color: colors.text,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 marginLeft: 8,
                 marginRight: 9,
@@ -465,9 +469,9 @@ export default function LearnScreen({
 
   const renderItem = useCallback(
     ({ item, index }: { item: NameEntry; index: number }) => (
-      <NameRow item={item} index={index} onPress={handlePress} />
+      <NameRow item={item} index={index} colors={C} onPress={handlePress} />
     ),
-    [handlePress]
+    [handlePress, C]
   );
 
   const keyExtractor = useCallback(
