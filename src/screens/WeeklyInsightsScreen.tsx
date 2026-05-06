@@ -148,10 +148,9 @@ export default function WeeklyInsightsScreen({
   const [savedToJournal, setSavedToJournal] = useState(false);
   const headerFade = useRef(new Animated.Value(0)).current;
 
-  // Cache key based on the current week (resets every Monday)
   function getWeekCacheKey(): string {
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun
+    const dayOfWeek = now.getDay();
     const monday = new Date(now);
     monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7));
     const y = monday.getFullYear();
@@ -175,7 +174,6 @@ export default function WeeklyInsightsScreen({
     setLoading(true);
     setError(null);
 
-    // 1. Check cache first
     try {
       const cacheKey = getWeekCacheKey();
       const cached = await AsyncStorage.getItem(cacheKey);
@@ -188,10 +186,9 @@ export default function WeeklyInsightsScreen({
         return;
       }
     } catch {
-      // Cache miss or error — continue to generate
+      // Cache miss — continue to generate
     }
 
-    // 2. Generate fresh
     await generateInsights();
   };
 
@@ -203,7 +200,6 @@ export default function WeeklyInsightsScreen({
     setSavedToJournal(false);
 
     try {
-      // Get entries from the past 7 days
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
 
@@ -224,12 +220,10 @@ export default function WeeklyInsightsScreen({
 
       setEntryCount(entries.length);
 
-      // Decrypt entries on-device before sending to AI
       const decrypted = await Promise.all(
         entries.map(async (e) => {
           try {
-            const dec = await decryptJournalEntry(e);
-            return dec;
+            return await decryptJournalEntry(e);
           } catch {
             return e;
           }
@@ -239,7 +233,6 @@ export default function WeeklyInsightsScreen({
       const result = await fetchWeeklyInsights(decrypted);
       setInsight(result);
 
-      // Save to cache
       try {
         const cacheKey = getWeekCacheKey();
         await AsyncStorage.setItem(
@@ -257,7 +250,6 @@ export default function WeeklyInsightsScreen({
     }
   };
 
-  // Get date range for header
   const weekAgo = new Date();
   weekAgo.setDate(weekAgo.getDate() - 7);
   const dateRange = `${weekAgo.toLocaleDateString("en-US", {
@@ -320,19 +312,14 @@ export default function WeeklyInsightsScreen({
           paddingVertical: 12,
         }}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <ChevronLeft size={22} color={_C.sage} />
-          <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
-            Journal
-          </Text>
+        {/* ── FIX: View inside Pressable guarantees row layout ── */}
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <ChevronLeft size={22} color={_C.sage} />
+            <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
+              Journal
+            </Text>
+          </View>
         </Pressable>
       </View>
 

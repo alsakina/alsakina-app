@@ -88,9 +88,10 @@ function renderFormattedContent(text: string) {
     if (!trimmed) return null;
 
     // Weekly insight section: emoji + CAPS HEADER on first line, body below
-    // Match patterns like "📊 YOUR WEEK\nbody text..."
+    // Emoji group restricted to non-ASCII only so leading "A" in headers
+    // like "A VERSE FOR YOUR WEEK" isn't swallowed into the emoji capture.
     const insightMatch = trimmed.match(
-      /^(.{1,4})\s+([A-Z][A-Z &'']+)\n([\s\S]+)/
+      /^([^\x00-\x7F]{1,2})\s+([A-Z][A-Z &'']+)\n([\s\S]+)/
     );
     if (insightMatch) {
       const emoji = insightMatch[1];
@@ -98,7 +99,6 @@ function renderFormattedContent(text: string) {
       let body = insightMatch[3].trim();
       const color = sectionColors[header] || _C.sage;
 
-      // Check if body contains a Quranic reference (— Surah...)
       let reference: string | null = null;
       const refMatch = body.match(/\n—\s*(.+)$/);
       if (refMatch) {
@@ -121,7 +121,6 @@ function renderFormattedContent(text: string) {
             borderColor: _C.sageFaint,
           }}
         >
-          {/* Section header */}
           <View
             style={{
               flexDirection: "row",
@@ -155,7 +154,6 @@ function renderFormattedContent(text: string) {
             </Text>
           </View>
 
-          {/* Body */}
           {isVerse ? (
             <View
               style={{
@@ -219,7 +217,7 @@ function renderFormattedContent(text: string) {
     }
 
     // Standalone header line (emoji + CAPS, no body below)
-    const headerMatch = trimmed.match(/^(.{1,4})\s+([A-Z][A-Z &'']+)$/);
+    const headerMatch = trimmed.match(/^([^\x00-\x7F]{1,2})\s+([A-Z][A-Z &'']+)$/);
     if (headerMatch) {
       return (
         <View key={i} style={{ marginTop: i > 0 ? 20 : 0, marginBottom: 8 }}>
@@ -279,7 +277,7 @@ function renderFormattedContent(text: string) {
       );
     }
 
-    // Check if it's a Name of Allah entry (Arabic — Transliteration)
+    // Check if it's a Name of Allah entry
     const nameMatch = trimmed.match(/^(.+)\s—\s(.+)\s\((.+)\)\n(.+)/s);
     if (nameMatch) {
       return (
@@ -346,7 +344,7 @@ function renderFormattedContent(text: string) {
       );
     }
 
-    // Check if it's a Quranic reference line (starts with —)
+    // Quranic reference line
     if (trimmed.startsWith("—")) {
       return (
         <Text
@@ -364,7 +362,7 @@ function renderFormattedContent(text: string) {
       );
     }
 
-    // Check for "Prompt:" prefix
+    // "Prompt:" prefix
     if (trimmed.startsWith("Prompt:")) {
       return (
         <View
@@ -441,19 +439,16 @@ export default function JournalEntryScreen({
   const bodyInputRef = useRef<TextInput>(null);
   const notesInputRef = useRef<TextInput>(null);
 
-  // New entry state
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(isEditing);
 
-  // Existing entry: separated original + notes
   const [originalContent, setOriginalContent] = useState("");
   const [notes, setNotes] = useState("");
   const [createdAt, setCreatedAt] = useState<string | null>(null);
 
-  // AI prompts
   const [prompts, setPrompts] = useState<JournalPrompt[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [activePrompt, setActivePrompt] = useState<string | null>(null);
@@ -510,7 +505,6 @@ export default function JournalEntryScreen({
         setMood(decrypted.mood);
         setCreatedAt(decrypted.created_at);
 
-        // Split into original content + notes
         const { original, notes: existingNotes } = splitContent(
           decrypted.body || ""
         );
@@ -539,7 +533,6 @@ export default function JournalEntryScreen({
     if (!user) return;
 
     if (isEditing) {
-      // Save notes alongside original content
       const fullBody = combineContent(originalContent, notes);
 
       setSaving(true);
@@ -575,7 +568,6 @@ export default function JournalEntryScreen({
         setSaving(false);
       }
     } else {
-      // New entry
       if (!body.trim()) {
         Alert.alert("Empty entry", "Write something before saving.");
         return;
@@ -667,9 +659,7 @@ export default function JournalEntryScreen({
           <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <ChevronLeft size={22} color={_C.sage} />
-              <Text
-                style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}
-              >
+              <Text style={{ color: _C.sage, fontSize: 15, marginLeft: 2 }}>
                 Journal
               </Text>
             </View>

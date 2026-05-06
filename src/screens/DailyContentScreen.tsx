@@ -74,7 +74,7 @@ function getTodayStr(): string {
 }
 
 function formatDateDisplay(dateStr: string): string {
-  const date = new Date(dateStr + "T12:00:00"); // noon to avoid timezone issues
+  const date = new Date(dateStr + "T12:00:00");
   return date.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -430,7 +430,6 @@ export default function DailyContentScreen({
     checkBookmark();
   }, []);
 
-  // Check if this content is already bookmarked
   const checkBookmark = async () => {
     if (!user) return;
     try {
@@ -456,7 +455,6 @@ export default function DailyContentScreen({
 
     try {
       if (bookmarked) {
-        // Unsave
         await supabase
           .from("saved_content")
           .delete()
@@ -465,7 +463,6 @@ export default function DailyContentScreen({
           .eq("content_date", dateStr);
         setBookmarked(false);
       } else {
-        // Save
         await supabase.from("saved_content").insert({
           user_id: user.id,
           content_type: type,
@@ -483,9 +480,6 @@ export default function DailyContentScreen({
     }
   };
 
-  // fetchDailyContent in intelligence.ts handles the logic:
-  //   1. Tries Supabase first (instant, free)
-  //   2. Falls back to direct Anthropic API if Supabase has nothing
   const loadContent = async () => {
     setLoading(true);
     setError(null);
@@ -544,25 +538,20 @@ export default function DailyContentScreen({
           paddingVertical: 12,
         }}
       >
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={({ pressed }) => ({
-            flexDirection: "row",
-            alignItems: "center",
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <ChevronLeft size={22} color={config.accentColor} />
-          <Text
-            style={{
-              color: config.accentColor,
-              fontSize: 15,
-              marginLeft: 2,
-            }}
-          >
-            Garden
-          </Text>
+        {/* FIX: View inside Pressable guarantees row layout */}
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <ChevronLeft size={22} color={config.accentColor} />
+            <Text
+              style={{
+                color: config.accentColor,
+                fontSize: 15,
+                marginLeft: 2,
+              }}
+            >
+              Garden
+            </Text>
+          </View>
         </Pressable>
 
         {/* Only show refresh for today's content */}
@@ -752,12 +741,8 @@ export default function DailyContentScreen({
                   paddingHorizontal: 24,
                   borderRadius: 14,
                   borderWidth: 1.5,
-                  borderColor: bookmarked
-                    ? _C.sage
-                    : config.accentColor,
-                  backgroundColor: bookmarked
-                    ? _C.sageFaint
-                    : "transparent",
+                  borderColor: bookmarked ? _C.sage : config.accentColor,
+                  backgroundColor: bookmarked ? _C.sageFaint : "transparent",
                 }}
               >
                 <Bookmark

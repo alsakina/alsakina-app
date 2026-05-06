@@ -11,14 +11,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RotateCcw, ChevronDown, ChevronUp, History } from "lucide-react-native";
+import Svg, { Circle as SvgCircle } from "react-native-svg";
 import { useFocusEffect } from "@react-navigation/native";
-import { useColors, LightColors } from "../lib/ThemeContext";
+import { Colors } from "../lib/theme";
 import { useAuth } from "../lib/AuthContext";
 import { supabase } from "../lib/supabase";
 import ScreenHeader from "../components/ScreenHeader";
-
-// Module-level colour ref — kept in sync by the screen on every render
-let _C = LightColors;
 
 /* ── Date helper (local timezone) ──────────────── */
 
@@ -146,65 +144,47 @@ const DiamondAccent = () => (
   </View>
 );
 
-/* ── Circular progress ring ────────────────────── */
+/* ── Circular progress ring (SVG) ──────────────── */
 
 const ProgressRing = ({
   progress,
   size = 260,
   strokeWidth = 6,
 }: {
-  progress: number; // 0-1
+  progress: number; // 0–1
   size?: number;
   strokeWidth?: number;
 }) => {
-  const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference * (1 - Math.min(progress, 1));
+  const clampedProgress = Math.min(Math.max(progress, 0), 1);
+  const strokeDashoffset = circumference * (1 - clampedProgress);
 
   return (
-    <View style={{ width: size, height: size }}>
-      {/* Background ring */}
-      <View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: _C.sageFaint,
-        }}
+    <Svg width={size} height={size}>
+      {/* Background track */}
+      <SvgCircle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="rgba(135,169,107,0.12)"
+        strokeWidth={strokeWidth}
+        fill="none"
       />
-      {/* We'll use a simple View-based approach since SVG isn't available */}
-      <View
-        style={{
-          position: "absolute",
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: strokeWidth,
-          borderColor: _C.sage,
-          borderTopColor:
-            progress > 0.75
-              ? _C.sage
-              : "transparent",
-          borderRightColor:
-            progress > 0.5
-              ? _C.sage
-              : "transparent",
-          borderBottomColor:
-            progress > 0.25
-              ? _C.sage
-              : "transparent",
-          borderLeftColor:
-            progress > 0
-              ? _C.sage
-              : "transparent",
-          opacity: 0.6,
-          transform: [{ rotate: "-90deg" }],
-        }}
+      {/* Progress arc — starts at 12 o'clock */}
+      <SvgCircle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={Colors.sage}
+        strokeWidth={strokeWidth}
+        fill="none"
+        strokeDasharray={`${circumference} ${circumference}`}
+        strokeDashoffset={strokeDashoffset}
+        strokeLinecap="round"
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
-    </View>
+    </Svg>
   );
 };
 
@@ -225,13 +205,9 @@ const DhikrPill = ({
       paddingVertical: 10,
       paddingHorizontal: 16,
       borderRadius: 14,
-      backgroundColor: isSelected
-        ? _C.borderStrong
-        : "white",
+      backgroundColor: isSelected ? "rgba(135,169,107,0.2)" : "white",
       borderWidth: 1.5,
-      borderColor: isSelected
-        ? _C.sage
-        : _C.sageFaint,
+      borderColor: isSelected ? Colors.sage : "rgba(135,169,107,0.08)",
       marginRight: 8,
       alignItems: "center",
       minWidth: 90,
@@ -240,7 +216,7 @@ const DhikrPill = ({
     <Text
       style={{
         fontSize: 16,
-        color: _C.text,
+        color: Colors.charcoal,
         fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
         marginBottom: 2,
       }}
@@ -250,7 +226,7 @@ const DhikrPill = ({
     <Text
       style={{
         fontSize: 11,
-        color: isSelected ? _C.sage : _C.textMuted,
+        color: isSelected ? Colors.sage : Colors.charcoalMuted,
         fontWeight: "600",
       }}
     >
@@ -262,11 +238,15 @@ const DhikrPill = ({
 /* ── Main screen ───────────────────────────────── */
 
 export default function DhikrScreen() {
-  const C = useColors();
-  _C = C;
   const { user } = useAuth();
   const [selected, setSelected] = useState<DhikrOption>(DHIKR_PRESETS[0]);
-  const [count, setCount] = useState(0);
+
+  // `ringCount`    — what the ring displays (resets to 0 on Reset)
+  // `sessionOffset`— the Supabase total when the ring was last reset;
+  //                  taps save (sessionOffset + ringCount) to Supabase
+  const [ringCount, setRingCount] = useState(0);
+  const [sessionOffset, setSessionOffset] = useState(0);
+
   const [todayTotal, setTodayTotal] = useState(0);
   const [showSelector, setShowSelector] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -275,8 +255,9 @@ export default function DhikrScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const headerFade = useRef(new Animated.Value(0)).current;
 
-  const progress = count / selected.target;
-  const isComplete = count >= selected.target;
+  // Progress is ring-only (0 → target), so it resets visually each cycle
+  const progress = ringCount / selected.target;
+  const isComplete = ringCount >= selected.target;
 
   useEffect(() => {
     Animated.timing(headerFade, {
@@ -286,7 +267,6 @@ export default function DhikrScreen() {
     }).start();
   }, []);
 
-  // Load today's count for the selected dhikr
   useFocusEffect(
     useCallback(() => {
       if (user) {
@@ -308,13 +288,13 @@ export default function DhikrScreen() {
         .eq("date", today)
         .single();
 
-      if (data) {
-        setCount(data.count);
-      } else {
-        setCount(0);
-      }
+      const savedCount = data?.count ?? 0;
+      // On load, the ring shows however many are in Supabase (capped at target)
+      // and the offset is whatever is above the ring's target
+      setRingCount(savedCount % selected.target || (savedCount > 0 ? savedCount : 0));
+      setSessionOffset(Math.floor(savedCount / selected.target) * selected.target);
 
-      // Also load total across all dhikr for today
+      // Total across all dhikr today
       const { data: allData } = await supabase
         .from("dhikr_logs")
         .select("count")
@@ -327,7 +307,8 @@ export default function DhikrScreen() {
       );
       setTodayTotal(total);
     } catch {
-      setCount(0);
+      setRingCount(0);
+      setSessionOffset(0);
     }
   };
 
@@ -349,17 +330,10 @@ export default function DhikrScreen() {
         return;
       }
 
-      // Group by date
-      const dayMap: Record<
-        string,
-        { key: string; count: number }[]
-      > = {};
+      const dayMap: Record<string, { key: string; count: number }[]> = {};
       for (const row of data) {
         if (!dayMap[row.date]) dayMap[row.date] = [];
-        dayMap[row.date].push({
-          key: row.dhikr_key,
-          count: row.count,
-        });
+        dayMap[row.date].push({ key: row.dhikr_key, count: row.count });
       }
 
       const days: DayHistory[] = dates.map((dateStr) => {
@@ -383,14 +357,12 @@ export default function DhikrScreen() {
   };
 
   const handleTap = async () => {
-    const newCount = count + 1;
-    setCount(newCount);
+    const newRingCount = ringCount + 1;
+    setRingCount(newRingCount);
     setTodayTotal((prev) => prev + 1);
 
-    // Haptic feedback
     Vibration.vibrate(10);
 
-    // Pulse animation
     Animated.sequence([
       Animated.timing(pulseAnim, {
         toValue: 0.92,
@@ -404,12 +376,13 @@ export default function DhikrScreen() {
       }),
     ]).start();
 
-    // Stronger feedback at target
-    if (newCount === selected.target) {
+    if (newRingCount === selected.target) {
       Vibration.vibrate([0, 100, 50, 100]);
     }
 
-    // Save to Supabase
+    // The true cumulative count = offset + ring count
+    const totalCount = sessionOffset + newRingCount;
+
     if (user) {
       const today = getTodayLocal();
       try {
@@ -424,13 +397,13 @@ export default function DhikrScreen() {
         if (existing) {
           await supabase
             .from("dhikr_logs")
-            .update({ count: newCount })
+            .update({ count: totalCount })
             .eq("id", existing.id);
         } else {
           await supabase.from("dhikr_logs").insert({
             user_id: user.id,
             dhikr_key: selected.key,
-            count: newCount,
+            count: totalCount,
             date: today,
           });
         }
@@ -441,19 +414,24 @@ export default function DhikrScreen() {
   };
 
   const handleReset = () => {
-    setCount(0);
+    // Move the current ring count into the offset so the Supabase total
+    // is preserved. The ring resets to 0 visually.
+    setSessionOffset((prev) => prev + ringCount);
+    setRingCount(0);
+    // todayTotal is intentionally NOT touched — it keeps accumulating
   };
 
   const switchDhikr = (option: DhikrOption) => {
     setSelected(option);
-    setCount(0);
+    setRingCount(0);
+    setSessionOffset(0);
     setShowSelector(false);
     if (user) loadTodayCount();
   };
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: _C.background }}
+      style={{ flex: 1, backgroundColor: Colors.cream }}
       edges={["top"]}
     >
       <ScreenHeader />
@@ -479,19 +457,14 @@ export default function DhikrScreen() {
           <Text
             style={{
               fontSize: 24,
-              color: _C.text,
+              color: Colors.charcoal,
               fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
               marginBottom: 4,
             }}
           >
             Dhikr
           </Text>
-          <Text
-            style={{
-              fontSize: 13,
-              color: _C.textMuted,
-            }}
-          >
+          <Text style={{ fontSize: 13, color: Colors.charcoalMuted }}>
             {todayTotal} total today
           </Text>
         </Animated.View>
@@ -510,7 +483,7 @@ export default function DhikrScreen() {
           <Text
             style={{
               fontSize: 13,
-              color: _C.sage,
+              color: Colors.sage,
               fontWeight: "600",
               marginRight: 4,
             }}
@@ -518,9 +491,9 @@ export default function DhikrScreen() {
             {showSelector ? "Hide options" : "Change dhikr"}
           </Text>
           {showSelector ? (
-            <ChevronUp size={16} color={_C.sage} />
+            <ChevronUp size={16} color={Colors.sage} />
           ) : (
-            <ChevronDown size={16} color={_C.sage} />
+            <ChevronDown size={16} color={Colors.sage} />
           )}
         </Pressable>
 
@@ -564,27 +537,21 @@ export default function DhikrScreen() {
               <ProgressRing progress={progress} />
 
               {/* Count display (centered over the ring) */}
-              <View
-                style={{
-                  position: "absolute",
-                  alignItems: "center",
-                }}
-              >
+              <View style={{ position: "absolute", alignItems: "center" }}>
                 <Text
                   style={{
                     fontSize: 56,
                     fontWeight: "300",
-                    color: _C.text,
-                    fontFamily:
-                      Platform.OS === "ios" ? "Georgia" : "serif",
+                    color: Colors.charcoal,
+                    fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                   }}
                 >
-                  {count}
+                  {ringCount}
                 </Text>
                 <Text
                   style={{
                     fontSize: 13,
-                    color: _C.textMuted,
+                    color: Colors.charcoalMuted,
                     marginTop: -2,
                   }}
                 >
@@ -599,7 +566,7 @@ export default function DhikrScreen() {
             <Text
               style={{
                 fontSize: 28,
-                color: _C.text,
+                color: Colors.charcoal,
                 fontFamily: Platform.OS === "ios" ? "Georgia" : "serif",
                 marginBottom: 4,
                 textAlign: "center",
@@ -610,7 +577,7 @@ export default function DhikrScreen() {
             <Text
               style={{
                 fontSize: 15,
-                color: _C.sage,
+                color: Colors.sage,
                 fontWeight: "600",
                 marginBottom: 4,
               }}
@@ -620,7 +587,7 @@ export default function DhikrScreen() {
             <Text
               style={{
                 fontSize: 13,
-                color: _C.textMuted,
+                color: Colors.charcoalMuted,
                 fontStyle: "italic",
               }}
             >
@@ -642,7 +609,7 @@ export default function DhikrScreen() {
               <Text
                 style={{
                   fontSize: 14,
-                  color: _C.sage,
+                  color: Colors.sage,
                   fontWeight: "600",
                   textAlign: "center",
                 }}
@@ -665,14 +632,8 @@ export default function DhikrScreen() {
               borderRadius: 12,
             }}
           >
-            <RotateCcw size={16} color={_C.textMuted} />
-            <Text
-              style={{
-                color: _C.textMuted,
-                fontSize: 14,
-                marginLeft: 6,
-              }}
-            >
+            <RotateCcw size={16} color={Colors.charcoalMuted} />
+            <Text style={{ color: Colors.charcoalMuted, fontSize: 14, marginLeft: 6 }}>
               Reset counter
             </Text>
           </Pressable>
@@ -684,106 +645,85 @@ export default function DhikrScreen() {
             {/* Divider + toggle */}
             <Pressable
               onPress={() => setShowHistory(!showHistory)}
+              style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}
             >
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 16,
-                  gap: 8,
-                }}
-              >
-                <View
+              <View style={{ flex: 1, height: 1, backgroundColor: "rgba(135,169,107,0.1)" }} />
+              <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 6 }}>
+                <History size={14} color={Colors.charcoalMuted} />
+                <Text
                   style={{
-                    flex: 1,
-                    height: 1,
-                    backgroundColor: _C.border,
-                  }}
-                />
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
+                    fontSize: 11,
+                    fontWeight: "700",
+                    color: Colors.charcoalMuted,
+                    letterSpacing: 1.2,
+                    textTransform: "uppercase",
                   }}
                 >
-                  <History size={14} color={_C.textMuted} />
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "600",
-                      color: _C.textMuted,
-                      letterSpacing: 1.2,
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Past 7 Days
-                  </Text>
-                  {showHistory ? (
-                    <ChevronUp size={14} color={_C.textMuted} />
-                  ) : (
-                    <ChevronDown size={14} color={_C.textMuted} />
-                  )}
-                </View>
-                <View
-                  style={{
-                    flex: 1,
-                    height: 1,
-                    backgroundColor: _C.border,
-                  }}
-                />
+                  Past 7 Days
+                </Text>
+                {showHistory ? (
+                  <ChevronUp size={14} color={Colors.charcoalMuted} />
+                ) : (
+                  <ChevronDown size={14} color={Colors.charcoalMuted} />
+                )}
               </View>
+              <View style={{ flex: 1, height: 1, backgroundColor: "rgba(135,169,107,0.1)" }} />
             </Pressable>
 
             {showHistory && (
-              <View>
+              <View style={{ marginTop: 16, gap: 8 }}>
                 {history.map((day) => {
-                  const dateObj = new Date(day.date + "T12:00:00");
+                  const isToday = day.date === getTodayLocal();
                   const isExpanded = expandedDay === day.date;
-                  const isCurrentDay = day.date === getTodayLocal();
-                  const dayLabel = isCurrentDay
-                    ? "Today"
-                    : dateObj.toLocaleDateString("en-US", {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      });
+
+                  if (day.total === 0 && !isToday) return null;
 
                   return (
-                    <View key={day.date} style={{ marginBottom: 8 }}>
-                      <Pressable
-                        onPress={() =>
-                          setExpandedDay(isExpanded ? null : day.date)
-                        }
+                    <Pressable
+                      key={day.date}
+                      onPress={() =>
+                        setExpandedDay(isExpanded ? null : day.date)
+                      }
+                    >
+                      <View
+                        style={{
+                          backgroundColor: isToday
+                            ? "rgba(135,169,107,0.06)"
+                            : "white",
+                          borderRadius: 16,
+                          padding: 16,
+                          borderWidth: 1,
+                          borderColor: isToday
+                            ? "rgba(135,169,107,0.15)"
+                            : "rgba(135,169,107,0.06)",
+                        }}
                       >
                         <View
                           style={{
-                            backgroundColor: _C.surface,
-                            borderRadius: 14,
-                            padding: 14,
-                            borderWidth: 1,
-                            borderColor: isCurrentDay
-                              ? _C.borderStrong
-                              : _C.sageFaint,
                             flexDirection: "row",
                             alignItems: "center",
                             justifyContent: "space-between",
                           }}
                         >
-                          <View style={{ flexDirection: "row", alignItems: "center" }}>
-                            <Text
-                              style={{
-                                fontSize: 14,
-                                fontWeight: isCurrentDay ? "700" : "600",
-                                color: isCurrentDay
-                                  ? _C.sage
-                                  : _C.text,
-                              }}
-                            >
-                              {dayLabel}
-                            </Text>
-                          </View>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: isToday ? "700" : "500",
+                              color: isToday
+                                ? Colors.sage
+                                : Colors.charcoal,
+                            }}
+                          >
+                            {isToday
+                              ? "Today"
+                              : new Date(
+                                  day.date + "T12:00:00"
+                                ).toLocaleDateString("en-US", {
+                                  weekday: "short",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                          </Text>
                           <View
                             style={{
                               flexDirection: "row",
@@ -791,156 +731,110 @@ export default function DhikrScreen() {
                               gap: 8,
                             }}
                           >
-                            {day.total > 0 ? (
-                              <View
-                                style={{
-                                  backgroundColor: "rgba(135,169,107,0.1)",
-                                  borderRadius: 8,
-                                  paddingVertical: 3,
-                                  paddingHorizontal: 10,
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    fontSize: 14,
-                                    fontWeight: "700",
-                                    color: _C.sage,
-                                  }}
-                                >
-                                  {day.total}
-                                </Text>
-                              </View>
-                            ) : (
-                              <Text
-                                style={{
-                                  fontSize: 13,
-                                  color: _C.textMuted,
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                —
-                              </Text>
-                            )}
-                            {day.breakdown.length > 0 && (
-                              isExpanded ? (
-                                <ChevronUp
-                                  size={14}
-                                  color={_C.textMuted}
-                                />
-                              ) : (
-                                <ChevronDown
-                                  size={14}
-                                  color={_C.textMuted}
-                                />
-                              )
-                            )}
-                          </View>
-                        </View>
-                      </Pressable>
-
-                      {/* Expanded breakdown */}
-                      {isExpanded && day.breakdown.length > 0 && (
-                        <View
-                          style={{
-                            backgroundColor: "rgba(135,169,107,0.04)",
-                            borderRadius: 12,
-                            marginTop: 4,
-                            padding: 12,
-                            gap: 8,
-                          }}
-                        >
-                          {day.breakdown.map((item) => (
                             <View
-                              key={item.key}
                               style={{
-                                flexDirection: "row",
-                                justifyContent: "space-between",
-                                alignItems: "center",
+                                backgroundColor: isToday
+                                  ? Colors.sage
+                                  : "rgba(135,169,107,0.12)",
+                                borderRadius: 10,
+                                paddingVertical: 3,
+                                paddingHorizontal: 10,
                               }}
                             >
                               <Text
                                 style={{
-                                  fontSize: 13,
-                                  color: _C.text,
+                                  fontSize: 14,
+                                  fontWeight: "700",
+                                  color: isToday ? "white" : Colors.sage,
                                 }}
                               >
-                                {item.transliteration}
+                                {day.total}
                               </Text>
+                            </View>
+                            {day.breakdown.length > 0 && (
+                              isExpanded ? (
+                                <ChevronUp size={16} color={Colors.charcoalMuted} />
+                              ) : (
+                                <ChevronDown size={16} color={Colors.charcoalMuted} />
+                              )
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Breakdown */}
+                        {isExpanded && day.breakdown.length > 0 && (
+                          <View style={{ marginTop: 12, gap: 8 }}>
+                            {day.breakdown.map((item) => (
                               <View
+                                key={item.key}
                                 style={{
                                   flexDirection: "row",
                                   alignItems: "center",
-                                  gap: 6,
+                                  justifyContent: "space-between",
                                 }}
                               >
-                                {/* Mini progress bar */}
-                                <View
-                                  style={{
-                                    width: 60,
-                                    height: 4,
-                                    borderRadius: 2,
-                                    backgroundColor: "rgba(135,169,107,0.1)",
-                                    overflow: "hidden",
-                                  }}
-                                >
-                                  <View
-                                    style={{
-                                      width: `${Math.min(100, (item.count / (DHIKR_PRESETS.find((p) => p.key === item.key)?.target || 33)) * 100)}%`,
-                                      height: 4,
-                                      borderRadius: 2,
-                                      backgroundColor: _C.sage,
-                                    }}
-                                  />
-                                </View>
                                 <Text
                                   style={{
                                     fontSize: 13,
-                                    fontWeight: "600",
-                                    color: _C.sage,
-                                    minWidth: 28,
-                                    textAlign: "right",
+                                    color: Colors.charcoal,
+                                    flex: 1,
                                   }}
                                 >
-                                  {item.count}
+                                  {item.transliteration}
                                 </Text>
+                                <View
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    gap: 6,
+                                  }}
+                                >
+                                  {/* Mini progress bar */}
+                                  <View
+                                    style={{
+                                      width: 60,
+                                      height: 4,
+                                      borderRadius: 2,
+                                      backgroundColor: "rgba(135,169,107,0.1)",
+                                      overflow: "hidden",
+                                    }}
+                                  >
+                                    <View
+                                      style={{
+                                        width: `${Math.min(
+                                          100,
+                                          (item.count /
+                                            (DHIKR_PRESETS.find(
+                                              (p) => p.key === item.key
+                                            )?.target || 33)) *
+                                            100
+                                        )}%`,
+                                        height: 4,
+                                        borderRadius: 2,
+                                        backgroundColor: Colors.sage,
+                                      }}
+                                    />
+                                  </View>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: "600",
+                                      color: Colors.sage,
+                                      minWidth: 28,
+                                      textAlign: "right",
+                                    }}
+                                  >
+                                    {item.count}
+                                  </Text>
+                                </View>
                               </View>
-                            </View>
-                          ))}
-                        </View>
-                      )}
-                    </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
                   );
                 })}
-
-                {/* Total for the week */}
-                {history.length > 0 && (
-                  <View
-                    style={{
-                      alignItems: "center",
-                      marginTop: 12,
-                      paddingTop: 12,
-                      borderTopWidth: 1,
-                      borderTopColor: "rgba(135,169,107,0.1)",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: _C.textMuted,
-                      }}
-                    >
-                      Week total:{" "}
-                      <Text
-                        style={{
-                          fontWeight: "700",
-                          color: _C.sage,
-                        }}
-                      >
-                        {history.reduce((sum, d) => sum + d.total, 0)}
-                      </Text>
-                    </Text>
-                  </View>
-                )}
               </View>
             )}
           </View>
